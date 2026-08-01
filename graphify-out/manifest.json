@@ -1,18 +1,18 @@
 {
   ".claude/hooks/check-gstack.sh": {
-    "mtime": 1785598493.3596847,
+    "mtime": 1785598546.730459,
     "ast_hash": "ecffd1f09dd13b81571f237fe2cd2244",
     "semantic_hash": "ecffd1f09dd13b81571f237fe2cd2244"
   },
   ".claude/settings.json": {
-    "mtime": 1785598494.2035122,
-    "ast_hash": "b36acf819c28f6f4c3b93bcb88ddf8d6",
-    "semantic_hash": "b36acf819c28f6f4c3b93bcb88ddf8d6"
+    "mtime": 1785598546.9652162,
+    "ast_hash": "3142491534b71df7365080f582d259a5",
+    "semantic_hash": ""
   },
   "package.json": {
-    "mtime": 1785598481.651481,
-    "ast_hash": "eb88db7f91c3139f81d08f21d25decb0",
-    "semantic_hash": "eb88db7f91c3139f81d08f21d25decb0"
+    "mtime": 1785599168.3274374,
+    "ast_hash": "1f53b8ee2779fa0e1e453b7c69e35e15",
+    "semantic_hash": ""
   },
   "src/health.ts": {
     "mtime": 1785598481.6508007,
@@ -23,5 +23,105 @@
     "mtime": 1785598481.6515605,
     "ast_hash": "3b16c9630c2188cb7da35da4378c6649",
     "semantic_hash": "3b16c9630c2188cb7da35da4378c6649"
+  },
+  ".claude/CLAUDE.md": {
+    "mtime": 1785598494.2030337,
+    "ast_hash": "9b31786b637be3c13978bec4c2330752",
+    "semantic_hash": ""
+  },
+  ".claude/skills/graphify/SKILL.md": {
+    "mtime": 1785598494.2028728,
+    "ast_hash": "676310b3fa55aacdb350515228c8b0ec",
+    "semantic_hash": ""
+  },
+  ".claude/skills/graphify/references/add-watch.md": {
+    "mtime": 1784655460.558361,
+    "ast_hash": "d59d027fe449f06aa03905a01184e779",
+    "semantic_hash": ""
+  },
+  ".claude/skills/graphify/references/exports.md": {
+    "mtime": 1784655460.558668,
+    "ast_hash": "9da2a2152e60a22f07f05fed5158f287",
+    "semantic_hash": ""
+  },
+  ".claude/skills/graphify/references/extraction-spec.md": {
+    "mtime": 1784655460.5589983,
+    "ast_hash": "42fef56a01698118f7fd722acdadea34",
+    "semantic_hash": ""
+  },
+  ".claude/skills/graphify/references/github-and-merge.md": {
+    "mtime": 1784655460.5590994,
+    "ast_hash": "cde13df085e4c492aeb7ba298a996d0d",
+    "semantic_hash": ""
+  },
+  ".claude/skills/graphify/references/hooks.md": {
+    "mtime": 1784655460.5592713,
+    "ast_hash": "3f545db6ce646650bb9de588f5512a27",
+    "semantic_hash": ""
+  },
+  ".claude/skills/graphify/references/query.md": {
+    "mtime": 1784655460.5594695,
+    "ast_hash": "3c46f8ad006874260614ed8657d02307",
+    "semantic_hash": ""
+  },
+  ".claude/skills/graphify/references/transcribe.md": {
+    "mtime": 1784655460.5595758,
+    "ast_hash": "67b6a5fa6c0974e18f60db9f8932fbd8",
+    "semantic_hash": ""
+  },
+  ".claude/skills/graphify/references/update.md": {
+    "mtime": 1784655460.5597067,
+    "ast_hash": "9378bd03d56baaf78bd738ab3848f142",
+    "semantic_hash": ""
+  },
+  ".github/ISSUE_TEMPLATE/bug.yml": {
+    "mtime": 1785598546.928021,
+    "ast_hash": "77a7cbe6cd74ae972ad41aed68ed24aa",
+    "semantic_hash": ""
+  },
+  ".github/ISSUE_TEMPLATE/goal.yml": {
+    "mtime": 1785598546.9283037,
+    "ast_hash": "de810a746b24ce166dbb2fae149b63f8",
+    "semantic_hash": ""
+  },
+  ".github/ISSUE_TEMPLATE/task.yml": {
+    "mtime": 1785598546.9285626,
+    "ast_hash": "03d3b8c3358bd89fcaa8501ae29770f9",
+    "semantic_hash": ""
+  },
+  ".github/workflows/uexel-handoff-check.yml": {
+    "mtime": 1785598546.9303868,
+    "ast_hash": "1b0574753dd8cf050477c2d17da675fb",
+    "semantic_hash": ""
+  },
+  "CLAUDE.md": {
+    "mtime": 1785598529.020514,
+    "ast_hash": "c7dff57f246cf25c0e5ce3b0ad29c5bb",
+    "semantic_hash": ""
+  },
+  "README.md": {
+    "mtime": 1785598481.6422305,
+    "ast_hash": "4ca9fa2185182a25ab8acbdfd77312f3",
+    "semantic_hash": ""
+  },
+  "docs/ai/HANDOFF.md": {
+    "mtime": 1785599265.8152244,
+    "ast_hash": "198bae1a02d4a9c22d671a91ec63bdc8",
+    "semantic_hash": ""
+  },
+  "docs/ai/LEARNINGS.md": {
+    "mtime": 1785598529.0301526,
+    "ast_hash": "e35383c48ddd9bc3c4e8437dca3e7444",
+    "semantic_hash": ""
+  },
+  "docs/ai/PLAN.md": {
+    "mtime": 1785598529.0264006,
+    "ast_hash": "995ed72ecc50ae93f63492a380799eb8",
+    "semantic_hash": ""
+  },
+  "docs/ai/TODO.md": {
+    "mtime": 1785598529.0282347,
+    "ast_hash": "0a0595cdd4b3be691de73386bd0694f2",
+    "semantic_hash": ""
   }
 }
