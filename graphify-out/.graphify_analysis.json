@@ -1,0 +1,83 @@
+{
+  "communities": {
+    "0": [
+      "package",
+      "package_name",
+      "package_private",
+      "package_version"
+    ],
+    "1": [
+      "tsconfig_compileroptions",
+      "tsconfig_compileroptions_module",
+      "tsconfig_compileroptions_strict",
+      "tsconfig_compileroptions_target"
+    ],
+    "2": [
+      "ref_src",
+      "tsconfig",
+      "tsconfig_include"
+    ],
+    "3": [
+      "claude_hooks_check_gstack",
+      "claude_hooks_check_gstack_sh__entry"
+    ],
+    "4": [
+      "src_health",
+      "src_health_healthcheck"
+    ]
+  },
+  "cohesion": {
+    "0": 0.5,
+    "1": 0.5,
+    "2": 0.6666666666666666,
+    "3": 1.0,
+    "4": 1.0
+  },
+  "gods": [
+    {
+      "id": "tsconfig_compileroptions",
+      "label": "compilerOptions",
+      "degree": 4
+    },
+    {
+      "id": "tsconfig_include",
+      "label": "include",
+      "degree": 2
+    },
+    {
+      "id": "claude_hooks_check_gstack_sh__entry",
+      "label": "check-gstack.sh script",
+      "degree": 1
+    },
+    {
+      "id": "package_private",
+      "label": "private",
+      "degree": 1
+    },
+    {
+      "id": "tsconfig_compileroptions_strict",
+      "label": "strict",
+      "degree": 1
+    },
+    {
+      "id": "tsconfig_compileroptions_module",
+      "label": "module",
+      "degree": 1
+    },
+    {
+      "id": "tsconfig_compileroptions_target",
+      "label": "target",
+      "degree": 1
+    },
+    {
+      "id": "ref_src",
+      "label": "src",
+      "degree": 1
+    }
+  ],
+  "surprises": [],
+  "tokens": {
+    "input": 0,
+    "output": 0
+  }
+}

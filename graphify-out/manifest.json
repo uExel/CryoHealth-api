@@ -1,0 +1,27 @@
+{
+  ".claude/hooks/check-gstack.sh": {
+    "mtime": 1785598493.3596847,
+    "ast_hash": "ecffd1f09dd13b81571f237fe2cd2244",
+    "semantic_hash": "ecffd1f09dd13b81571f237fe2cd2244"
+  },
+  ".claude/settings.json": {
+    "mtime": 1785598494.2035122,
+    "ast_hash": "b36acf819c28f6f4c3b93bcb88ddf8d6",
+    "semantic_hash": "b36acf819c28f6f4c3b93bcb88ddf8d6"
+  },
+  "package.json": {
+    "mtime": 1785598481.651481,
+    "ast_hash": "eb88db7f91c3139f81d08f21d25decb0",
+    "semantic_hash": "eb88db7f91c3139f81d08f21d25decb0"
+  },
+  "src/health.ts": {
+    "mtime": 1785598481.6508007,
+    "ast_hash": "473bd7936b02b4c6fe51377b9debfb30",
+    "semantic_hash": "473bd7936b02b4c6fe51377b9debfb30"
+  },
+  "tsconfig.json": {
+    "mtime": 1785598481.6515605,
+    "ast_hash": "3b16c9630c2188cb7da35da4378c6649",
+    "semantic_hash": "3b16c9630c2188cb7da35da4378c6649"
+  }
+}
