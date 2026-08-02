@@ -12,6 +12,9 @@ import { Observation } from './observation.entity';
 @Entity('lakes')
 export class Lake {
   @PrimaryGeneratedColumn('uuid') id: string;
+  /** Stable key for idempotent seeding, independent of a real ICIMOD ID (which most
+   *  lakes here don't have yet — see source/sourceUrl). */
+  @Column({ unique: true }) slug: string;
   @Column() name: string;
   @Column({ nullable: true }) nameUr?: string;
   @Column() valley: string;
@@ -25,6 +28,10 @@ export class Lake {
   damType: string;
   @Column({ default: false }) glacierContact: boolean;
   @Column({ nullable: true, unique: true }) icimodId?: string;
+  /** Required, never a placeholder: where this row's coordinates and classification
+   *  came from. A lake with no citable source does not get a row (see docs/ai/decisions/0002). */
+  @Column({ type: 'text' }) source: string;
+  @Column({ nullable: true }) sourceUrl?: string;
   @Column({ type: 'geometry', spatialFeatureType: 'Point', srid: 4326 })
   geom: object;
   @Column({
