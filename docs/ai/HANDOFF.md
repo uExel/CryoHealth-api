@@ -1,39 +1,43 @@
-# HANDOFF — CryoHealth-api — 2026-08-01 21:00 PKT
-Session: harness-onboarding  Model: fable-5  Branch: main  Goal: none  Task: none
+# HANDOFF — CryoHealth-api — 2026-08-02 12:10 PKT
+Session: nestjs-scaffold  Model: fable-5  Branch: feat/4-nestjs-scaffold  Goal: #1  Task: #4
 
 ## State
-Repo is seeded (README, minimal src/health.ts, TS5 pin for LSP) and fully onboarded to the
-uExel harness: gstack team mode, graphify graph built, uexel + typescript-lsp plugins
-enabled, deny rules, issue templates, handoff PR check. No product code, no goal yet.
-Nothing is pushed to origin.
+NestJS 11 + PostGIS backbone complete and pushed: feature-owned module structure
+(common/config/database/users/auth/health/lakes), full §6 schema migrated, JWT auth
+with globally-enforced RBAC (JwtAuthGuard+RolesGuard via APP_GUARD, @Public() opt-out),
+paginated Open Data API (/lakes, /lakes/:id, /lakes/:id/observations), Swagger at /docs.
+PR not yet opened — opening now as part of this session.
 
 ## Done this session
-- Harness onboarding (commit 78fbe9c)
-- typescript@5 pinned so LSP go-to-definition works (commit 125d38e)
+- NestJS scaffold, PostGIS schema migration (695651e area, see git log)
+- Enterprise directory restructure + ADR 0001 (c7f1803)
+- Security fix: global auth guards were dead code, now wired + verified live (this commit)
 
 ## Not done / deferred
-- Real NestJS scaffold — waiting for the first goal
-- Labels not synced — gh not authenticated yet
+- Lake inventory seed (task #5) — not this task
+- Alerts/hazard/sync/facilities modules — staged in database/entities/, built when
+  their own tasks start (see PRD tracking map)
 
 ## Next action
-Run `gh auth login`, then re-run `cryo-harness/bin/uexel-onboard . --yes` to sync labels.
+Open PR for feat/4-nestjs-scaffold -> main; after merge, task #5 (seed real ICIMOD
+lake inventory) is unblocked.
 
 ## Open questions for a human
-- First goal for this repo? — blocking: yes
-- Push the seed commits to origin, or replace with a real NestJS scaffold first? — blocking: no
+- none blocking
 
 ## Failed approaches (do not retry)
-- LSP with TypeScript 7: typescript-language-server 5.x needs TS5's tsserver.js — keep the
-  workspace typescript@5 pin until the LSP plugin supports TS7.
+- Naming a repository and its accessor method the same root word (observations
+  repo + observations() method) — forces an awkward trailing-underscore method name.
+  Use observationRepo / listObservations pattern instead.
 
 ## Loops run
-- none
+- verify-pass fix loop: 1/3, passed (guard wiring + 2 consistency fixes), verifier: npm test + live boot + manual security review (rubrics: code-review.md, api-design.md)
 
 ## Files touched
-README.md, src/health.ts, package.json, tsconfig.json, harness files
+Full src/ tree (see commits c7f1803, latest); ARCHITECTURE.md, docs/ai/decisions/0001
 
 ## Verification status
-tests: none yet  review: n/a  qa: n/a
+tests: 13/13 passing  review: findings fixed (guard wiring)  qa: n/a (no UI)
 
 ## Resume with
-/uexel:orient   (then: /uexel:goal <first outcome for the api>)
+/uexel:orient   (then: task #5, real lake inventory seed)
