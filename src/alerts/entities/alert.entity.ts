@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
@@ -12,7 +13,14 @@ import { User } from '../../users/entities/user.entity';
 
 export type AlertStatus = 'active' | 'cleared';
 
+/** Dedupe is enforced by the database, not application logic that can race between
+ *  the hazard-score pipeline and a concurrent manual override: at most one ACTIVE alert
+ *  per (lake, tier). A cleared alert doesn't block a later, genuinely new episode. */
 @Entity('alerts')
+@Index('idx_alert_active_lake_tier', ['lakeId', 'tier'], {
+  unique: true,
+  where: `"status" = 'active'`,
+})
 export class Alert {
   @PrimaryGeneratedColumn('uuid') id: string;
   @ManyToOne(() => Lake, { nullable: true, onDelete: 'SET NULL' })
@@ -42,7 +50,6 @@ export class Alert {
   @JoinColumn({ name: 'issuedById' })
   issuedBy?: User;
   @Column({ nullable: true }) issuedById?: string;
-  @Column({ unique: true }) dedupeKey: string;
   @CreateDateColumn({ type: 'timestamptz' }) createdAt: Date;
   @Column({ type: 'timestamptz', nullable: true }) clearedAt?: Date;
 }

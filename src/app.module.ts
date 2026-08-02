@@ -7,6 +7,7 @@ import { DatabaseModule } from './database/database.module';
 import { AuthModule } from './auth/auth.module';
 import { HealthModule } from './health/health.module';
 import { LakesModule } from './lakes/lakes.module';
+import { AlertsModule } from './alerts/alerts.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 
@@ -21,6 +22,7 @@ import { RolesGuard } from './common/guards/roles.guard';
     AuthModule,
     HealthModule,
     LakesModule,
+    AlertsModule,
   ],
   providers: [
     // Order matters: auth resolves req.user first, then role membership is checked.
