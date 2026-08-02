@@ -10,6 +10,8 @@ import type { Tier } from '../../common/types/tier.type';
 import { Lake } from '../../lakes/entities/lake.entity';
 import { User } from '../../users/entities/user.entity';
 
+export type AlertStatus = 'active' | 'cleared';
+
 @Entity('alerts')
 export class Alert {
   @PrimaryGeneratedColumn('uuid') id: string;
@@ -34,7 +36,7 @@ export class Alert {
     enumName: 'alert_status',
     default: 'active',
   })
-  status: string;
+  status: AlertStatus;
   /** Null = created by the tiering pipeline; set = manual issue/override (audited). */
   @ManyToOne(() => User, { nullable: true })
   @JoinColumn({ name: 'issuedById' })

@@ -7,9 +7,11 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Public } from '../common/decorators/public.decorator';
 import { LakesService } from './lakes.service';
 
 /** Open Data API: read-only, no auth — safety information is never gated (PRD R1). */
+@Public()
 @ApiTags('open-data')
 @Controller('lakes')
 export class LakesController {
@@ -39,6 +41,6 @@ export class LakesController {
     @Query('page', new ParseIntPipe({ optional: true })) page?: number,
     @Query('pageSize', new ParseIntPipe({ optional: true })) pageSize?: number,
   ) {
-    return this.lakes.observations_(id, page, pageSize);
+    return this.lakes.listObservations(id, page, pageSize);
   }
 }

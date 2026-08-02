@@ -11,7 +11,7 @@ export class LakesService {
   constructor(
     @InjectRepository(Lake) private readonly lakes: Repository<Lake>,
     @InjectRepository(Observation)
-    private readonly observations: Repository<Observation>,
+    private readonly observationRepo: Repository<Observation>,
   ) {}
 
   /** Every list endpoint is paginated — no unbounded queries (api-design rubric #4). */
@@ -31,9 +31,9 @@ export class LakesService {
     return lake;
   }
 
-  async observations_(lakeId: string, page = 1, pageSize = 100) {
+  async listObservations(lakeId: string, page = 1, pageSize = 100) {
     const take = Math.min(pageSize, 500);
-    const [items, total] = await this.observations.findAndCount({
+    const [items, total] = await this.observationRepo.findAndCount({
       where: { lakeId },
       order: { capturedAt: 'DESC' },
       skip: (page - 1) * take,

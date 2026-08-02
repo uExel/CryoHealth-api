@@ -9,6 +9,8 @@ import {
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 
+export type SyncState = 'queued' | 'synced';
+
 @Entity('chw_cases')
 @Index(['chw', 'capturedAt'])
 export class ChwCase {
@@ -27,7 +29,7 @@ export class ChwCase {
     enumName: 'sync_state',
     default: 'synced',
   })
-  syncState: string;
+  syncState: SyncState;
   @Column() deviceId: string;
   /** Idempotency key for conflict-safe upsert from offline devices. */
   @Column({ unique: true }) clientCaseId: string;
