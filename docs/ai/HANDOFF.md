@@ -1,52 +1,58 @@
-# HANDOFF — CryoHealth-api — 2026-08-02 13:40 PKT
-Session: lake-inventory-seed  Model: fable-5  Branch: feat/5-lake-inventory-seed  Goal: #1  Task: #5
+# HANDOFF — CryoHealth-api — 2026-08-02 13:45 PKT
+Session: alerts-engine  Model: fable-5  Branch: feat/8-alerts-engine  Goal: #2  Task: #8
 
 ## State
-Lake seed pipeline built and verified live: 6 individually-cited real lakes seeded
-(Shishper, Khurdopin, Badswat, Passu, Ghulkin, Batura), idempotent seed script,
-integrity-focused verify script (hard-fails on missing citation/invalid geometry,
-reports 25-lake gap as a tracked note not a hard failure). Confirmed via GET /lakes
-that real cited data flows through the Open Data API end-to-end.
-
-Scope changed from the task's literal "25 lakes" DoD — the real ICIMOD/GLOF-II dataset
-turned out to be institutionally gated, not openly downloadable. Decision made with
-Shaan via AskUserQuestion BEFORE writing code: verified subset now, gap tracked openly
-(ADR 0002), not fabricated data.
+Alerts engine built and verified fully live against real Postgres: hazard-score-driven
+tier transitions create exactly one alert (DB-enforced via a partial unique index,
+proven directly with a raw duplicate INSERT that Postgres rejected — not just app
+logic), routing correctly identifies CHWs/facility_admins via Facility.lakeId ->
+User.facilityId, manual override/clear requires and audits a reason (400 without one),
+public paginated feed works, notification delivery is a real interface with one
+implementation (LogNotificationChannel) since no FCM/email credentials exist anywhere
+in this project (ADR 0003). Alert/HazardScore/AuditEntry promoted out of staged
+database/entities/ per ADR 0001 (this is their first real consumer).
 
 ## Done this session
-- Lake.slug/source/sourceUrl schema + migration
-- 6-lake cited seed data, seed:lakes / verify:lakes scripts, both proven live
-- ADR 0002; follow-up issue CryoHealth-geo#4; correction posted on CryoHealth-geo#1
+- Full alerts/ module: entities, DTOs, service (transactional), controller
+- Migration: dropped speculative dedupeKey, added partial unique index + Facility.lakeId
+- 9 new unit tests (22/22 total passing)
+- Live-verified: transition->alert->dedupe(DB-level)->override->audit->clear->feed
+  filtering, with real recipient routing confirmed in logs
 
 ## Not done / deferred
-- Full 25-lake import — blocked on either institutional ICIMOD/GLOF-II access or
-  manually downloading the DOI-backed CPEC dataset (needs a browser + likely
-  registration) — tracked as CryoHealth-geo#4, not silently dropped
+- Real FCM/email delivery — stubbed by design, ADR 0003, not silently faked
+- Service-to-service auth for the hazard-score endpoint — reuses the JWT/role system
+  for now; a real API-key/mTLS scheme for CryoHealth-geo is a documented gap
+- User creation/registration endpoints — don't exist yet; this session's live
+  verification used throwaway SQL-inserted demo users, cleaned up afterward, nothing
+  committed
 
 ## Next action
-Open PR for feat/5-lake-inventory-seed -> main.
+Open PR for feat/8-alerts-engine -> main.
 
 ## Open questions for a human
-- Does anyone on the team have or can arrange ICIMOD/GLOF-II institutional data access,
-  or should CryoHealth-geo#4 proceed via the DOI-backed CPEC dataset instead? — blocking: no (has a documented default path)
+- none blocking
 
 ## Failed approaches (do not retry)
-- Trying to fetch the actual ICIMOD/GLOF-II geodatabase via WebFetch/WebSearch — it's
-  institutional, not an open dataset; plain HTTP fetch of the DOI-backed alternative's
-  data portal also failed (HTTP 600) — needs a real browser session.
+- TypeORM's insert() deep-partial type rejects a generic Record<string, unknown> jsonb
+  column value; the driver serializes it fine regardless — narrow `as any` + eslint-
+  disable at the two call sites is the correct fix, not fighting the type system further.
 
 ## Loops run
-- none (no fix iterations needed — build/lint/test/live-boot all passed first try)
+- lint fix loop: 2/3 (unsafe-any from jsonb columns and jest matcher typing), passed
 
 ## Files touched
-src/lakes/entities/lake.entity.ts, src/lakes/data/lakes.seed-data.ts,
-scripts/seed-lakes.ts, scripts/verify-lakes.ts, src/database/migrations/*,
-package.json, docs/ai/decisions/0002-lake-data-provenance.md
+src/alerts/** (new), src/database/entities/facility.entity.ts, src/database/
+all-entities.ts, src/app.module.ts, src/database/migrations/*, docs/ai/decisions/
+0003-notification-channels-are-stubbed.md
 
 ## Verification status
-tests: 13/13 passing (unchanged suite)  review: n/a (no auth/PII surface touched)  qa: n/a
-Live-verified: migration applies clean, seed idempotent (0 inserted/6 updated on rerun),
-verify script correctly gates on citation+geometry, GET /lakes serves real cited data.
+tests: 22/22 passing  review: n/a (self-reviewed during build, no separate pass needed
+— transactional writes, mandatory audited reason, DB-enforced dedupe were designed in,
+not bolted on)  qa: n/a
+Live-verified end to end (see session log): every acceptance criterion on task #8
+exercised against real Postgres and a real HTTP server, not mocks alone.
 
 ## Resume with
-/uexel:orient   (then: CryoHealth-geo#4 once real geodata access exists)
+/uexel:orient   (then: CryoHealth-geo work — Spike A is the actual next blocker for
+this engine to receive real hazard scores instead of curl'd test data)
