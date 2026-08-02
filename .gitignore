@@ -1,2 +1,3 @@
 graphify-out/cost.json
 node_modules/
+.env

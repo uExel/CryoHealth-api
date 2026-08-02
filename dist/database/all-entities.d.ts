@@ -1,0 +1,10 @@
+import { Lake } from '../lakes/entities/lake.entity';
+import { Observation } from '../lakes/entities/observation.entity';
+import { User } from '../users/entities/user.entity';
+import { HazardScore } from './entities/hazard-score.entity';
+import { Alert } from './entities/alert.entity';
+import { Facility } from './entities/facility.entity';
+import { ChwCase } from './entities/chw-case.entity';
+import { SyncLog } from './entities/sync-log.entity';
+import { AuditEntry } from './entities/audit-entry.entity';
+export declare const entities: (typeof Observation | typeof Lake | typeof Facility | typeof User | typeof HazardScore | typeof Alert | typeof ChwCase | typeof SyncLog | typeof AuditEntry)[];
