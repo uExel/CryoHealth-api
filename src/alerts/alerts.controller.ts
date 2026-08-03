@@ -11,6 +11,7 @@ import {
   Req,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { AllowServiceKey } from '../common/decorators/allow-service-key.decorator';
 import { Public } from '../common/decorators/public.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { JwtPayload } from '../common/types/jwt-payload.type';
@@ -47,12 +48,14 @@ export class AlertsController {
 
   @Post('hazard-scores')
   @Roles('cryohealth_admin')
+  @AllowServiceKey()
   @ApiBearerAuth()
   @ApiOperation({
     summary:
       "The geo service reports a new hazard score here. A tier different from the lake's " +
-      'current one creates exactly one active alert (DB-enforced dedupe). Role-gated with ' +
-      'the existing JWT system for now — real service-to-service auth is a documented gap.',
+      'current one creates exactly one active alert (DB-enforced dedupe). Accepts either ' +
+      'a cryohealth_admin JWT or the x-api-key header (GEO_SERVICE_API_KEY) — the geo ' +
+      'service authenticates as the latter, since it has no user to log in as.',
   })
   recordHazardScore(@Body() dto: RecordHazardScoreDto) {
     return this.alerts.recordHazardScore(dto);
