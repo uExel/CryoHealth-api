@@ -67,3 +67,6 @@ artifacts cleaned up afterward.
 
 ## Resume with
 /uexel:orient — this branch is done, ready for PR.
+
+## Addendum — 2026-08-03 (harness maintenance)
+cryo-harness renamed to uxl-harness across the org (github.com/uExel/uxl-harness); this repo's .claude/settings.json marketplace pointer updated to match.
