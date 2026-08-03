@@ -10,6 +10,7 @@ export const validationSchema = Joi.object({
   PORT: Joi.number().default(3000),
   JWT_SECRET: Joi.string().min(16).required(),
   JWT_EXPIRES: Joi.string().default('12h'),
+  GEO_SERVICE_API_KEY: Joi.string().min(32).required(),
   DB_HOST: Joi.string().default('localhost'),
   DB_PORT: Joi.number().default(5433),
   DB_USER: Joi.string().default('cryohealth'),

@@ -11,9 +11,9 @@ import type { Tier } from '../../common/types/tier.type';
 
 const TIERS: Tier[] = ['normal', 'watch', 'high', 'critical'];
 
-/** The contract the geo service reports against. Auth: gated behind the existing JWT
- *  role system for now (cryohealth_admin) — real service-to-service auth (an API key
- *  or mTLS) is a documented gap, not this task's scope. */
+/** The contract the geo service reports against. Auth: @Roles('cryohealth_admin') +
+ *  @AllowServiceKey() — a human admin JWT or the GEO_SERVICE_API_KEY header both work;
+ *  see JwtAuthGuard and allow-service-key.decorator.ts. */
 export class RecordHazardScoreDto {
   @IsUUID() lakeId: string;
   @IsString() @IsNotEmpty() runId: string;
