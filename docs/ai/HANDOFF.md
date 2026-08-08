@@ -22,41 +22,40 @@ alerts that predate the column. `npm run build` and the full jest suite (28 test
 **The migration has never been run against a live Postgres** — no Docker in this dev
 environment, so this is unverified against a real schema.
 
-Nothing in this repo has been committed this session, including the pre-existing
-cases/CORS/seed-users work from before it.
+Both batches are now committed as one commit, `a70791c` "feat: mobile CHW case sync,
+CORS, and alert chips/checklist" — the earlier "commit as one PR or two" question below
+was answered by just committing together, same as CryoHealth-app.
 
 ## Done this session
 
-- `src/alerts/entities/alert.entity.ts`: added `chips`/`checklist` (jsonb, nullable) — no commit
-- `src/database/migrations/1786204276808-AlertChipsAndChecklist.ts` (new) — no commit
-- `src/alerts/dto/issue-alert.dto.ts`: optional `chips`/`checklist` string[] fields — no commit
+- `src/alerts/entities/alert.entity.ts`: added `chips`/`checklist` (jsonb, nullable)
+- `src/database/migrations/1786204276808-AlertChipsAndChecklist.ts` (new)
+- `src/alerts/dto/issue-alert.dto.ts`: optional `chips`/`checklist` string[] fields
 - `src/alerts/alerts.service.ts#issueManual`: passes `dto.chips`/`dto.checklist` through
-  to `insertAlert` — no commit
+  to `insertAlert`
 - Verified: `npm run build` clean, `npx jest alerts cases` (12/12) then full suite (28/28)
   passing — no live-DB verification (see State)
 - `CLAUDE.md` updated with the new columns
+- Committed this repo's full working tree (pre-existing cases/CORS/seed-users work +
+  this session's alert-column work) as `a70791c`, on top of the earlier docs-only
+  handoff commit `a281fb3`
 
 ## Not done / deferred
 
 - Running the new migration against a real Postgres — needs Docker, not available here
 - No endpoint/UI exists yet to let the `cryohealth` web dashboard author chips/checklist
   when issuing an alert from there — only `IssueAlertDto` (this API) supports it so far
-- The pre-existing `cases`/CORS/seed-users work (not mine) is also still uncommitted —
-  worth reviewing and committing as its own change before this session's alert-column
-  work lands on top of it, so the two are distinguishable in history
 
 ## Next action
 
 `docker compose up -d db && npm run migration:run` on a Docker-capable machine to
 actually apply `AlertChipsAndChecklist`, then `npm run seed:lakes && npm run seed:users`
-and a manual `POST /alerts` with `chips`/`checklist` set, to confirm the column round-
-trips before anything here gets committed.
+and a manual `POST /alerts` with `chips`/`checklist` set, to confirm the column
+round-trips — none of this has been verified against a live database yet, despite being
+committed.
 
 ## Open questions for a human
 
-- Commit the pre-existing cases/CORS/seed-users work and this session's alert-column
-  work as one PR or two? They're unrelated in purpose (mobile CHW sync enablement vs.
-  mobile alert-copy enrichment) — blocking: no
 - Should chip/checklist authoring also be exposed via `PATCH /alerts/:id` (override), or
   only at issue time? — blocking: no
 
@@ -81,10 +80,12 @@ src/main.ts, src/cases/, scripts/seed-users.ts)
 
 tests: 28/28 passing build: clean migration: written, not run (no Docker) — do not
 treat the new columns as live until the migration has actually been applied
+commit: `a70791c`
 
 ## Resume with
 
-/uexel:orient (then: run the migration on a Docker-capable machine before committing)
+/uexel:orient (then: run the migration on a Docker-capable machine — nothing here has
+been verified against a live database despite being committed)
 
 ## Addendum — 2026-08-03 (harness maintenance)
 
