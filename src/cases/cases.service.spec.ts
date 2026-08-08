@@ -39,7 +39,7 @@ describe('CasesService', () => {
     const result = await service.create('chw-1', dto);
 
     expect(repo.save).toHaveBeenCalledTimes(1);
-    expect((result as any).clientCaseId).toBe('device-abc-1');
+    expect(result.clientCaseId).toBe('device-abc-1');
   });
 
   it('returns the existing case on a retried clientCaseId instead of duplicating', async () => {
@@ -52,13 +52,17 @@ describe('CasesService', () => {
     expect(result).toBe(existing);
   });
 
-  it('paginates a user\'s case history newest-first', async () => {
+  it("paginates a user's case history newest-first", async () => {
     repo.findAndCount.mockResolvedValue([[], 0]);
 
     const result = await service.listForUser('chw-1', 2, 10);
 
     expect(repo.findAndCount).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { chwId: 'chw-1' }, skip: 10, take: 10 }),
+      expect.objectContaining({
+        where: { chwId: 'chw-1' },
+        skip: 10,
+        take: 10,
+      }),
     );
     expect(result).toEqual({ items: [], total: 0, page: 2, pageSize: 10 });
   });
