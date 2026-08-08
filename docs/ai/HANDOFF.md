@@ -1,20 +1,18 @@
-# HANDOFF — CryoHealth-api — 2026-08-09 00:45 PKT
+# HANDOFF — CryoHealth-api — 2026-08-09 01:20 PKT
 
 Session: hetzner-tunnel-deploy Model: claude-sonnet-5 Branch: main Goal: none Task: none (ad hoc, cross-repo deploy infra)
 
 ## State
 
-CD pipeline (`deploy.yml`, workflow_run on green `ci`) built and secrets are in place
-(`DEPLOY_HOST`/`DEPLOY_USER`/`DEPLOY_SSH_KEY`). CI is green again — fixed the one real
-lint error (`cases.service.spec.ts` unnecessary `any` cast) that had been blocking `ci`
-for the last 3 commits, unrelated to this session's actual goal. Dockerfile now keeps
-`ts-node` + TS source in the prod image so `npm run migration:run` works against exactly
-the deployed image (`docker compose run --rm api npm run migration:run`, wired into
-`cryohealth-infra/deploy.sh`, runs before the container restarts on every deploy).
-Latest `deploy` run built and pushed the image to GHCR successfully but failed at the SSH
-step: the Hetzner box (`ubuntu-4gb-hel1-1`, 204.168.190.206) can't pull the private GHCR
-image (`docker pull` → `unauthorized`) — it has no `docker login ghcr.io` credential yet.
-Asked the user for a GitHub PAT (`read:packages`) to fix this; awaiting reply.
+Fully deployed and live. `api` runs on the Hetzner box (`ubuntu-4gb-hel1-1`,
+204.168.190.206) behind the `cryohealth-hetzner` Cloudflare Tunnel, publicly reachable at
+`https://api.cryohealth.io` — confirmed via `GET /health` → `{"status":"ok","database":"up"}`.
+CD pipeline (`deploy.yml`, workflow_run on green `ci`) ran end-to-end successfully
+(`deploy #4`): build → push to GHCR → SSH → `docker compose run --rm api npm run
+migration:run` → restart. All 7 migrations applied cleanly against production Postgres
+for the first time. GHCR pull auth fixed (user supplied a `read:packages` PAT, `docker
+login`'d as the `deploy` user on the server). A real, previously-latent build bug was
+also caught and fixed here — see Done this session.
 
 ## Done this session
 
@@ -24,28 +22,35 @@ Asked the user for a GitHub PAT (`read:packages`) to fix this; awaiting reply.
 - Fixed the pre-existing lint error blocking ci for 3 commits — removed a redundant `any`
   cast in cases.service.spec.ts since `CasesService.create()` already returns
   `Promise<ChwCase>` (62cbea4)
+- **Fixed a real build bug, never caught before because this app had never actually run
+  from its built artifact until this session**: `tsconfig.build.json` didn't exclude
+  `scripts/`, so tsc's inferred rootDir spanned both `src/` and `scripts/`, nesting
+  compiled output under `dist/src/main.js` instead of `dist/main.js`. The pre-existing
+  `start:prod` script (`node dist/main`) and this repo's Dockerfile CMD both assumed the
+  flat path and would have always crash-looped — confirmed live (`MODULE_NOT_FOUND`) on
+  the first real container run. Fixed by excluding `scripts/` from the build (it's run
+  via `ts-node` directly, never meant to be compiled) (5905af9)
 - GitHub Actions secrets set: DEPLOY_HOST, DEPLOY_USER, DEPLOY_SSH_KEY
+- Server: GHCR login configured, migrations run, `api` container stable and serving
+  traffic through the tunnel
 
 ## Not done / deferred
 
-- Server has never successfully pulled/run this repo's image — blocked on GHCR PAT (see
-  Open questions). Until then, `api` isn't actually running on the Hetzner box.
-- No live verification of the migration-on-deploy step (`docker compose run --rm api npm
-run migration:run`) against the production DB — can't test until the image can be pulled
+- No automated test exercises the actual built container (only source-level jest via
+  ts-jest) — the `dist/main.js` path bug would have been caught by CI if a smoke-test
+  step ran the built image; consider adding one
+- `Facility.vulnerability` still has no entity mapping (pre-existing gap, noted in an
+  earlier session's addendum, not touched here)
 
 ## Next action
 
-Once the user supplies a GHCR `read:packages` PAT: SSH to 204.168.190.206 as `deploy`,
-`docker login ghcr.io -u <user> -p <PAT>`, then re-run the failed `deploy` workflow from
-the GitHub Actions UI (Actions → deploy → latest run → Re-run jobs → Re-run failed jobs —
-**must click through the confirmation modal that appears**, closing it without confirming
-does nothing silently).
+None blocking. If picking this back up: consider adding a CI step that actually runs
+`docker build` + boots the container (`node dist/main.js` + hits `/health`) so a
+regression like this session's rootDir bug fails in CI instead of on first deploy.
 
 ## Open questions for a human
 
-- GHCR pull PAT for the deploy box — blocking: yes
-- Real Copernicus CDSE credentials for geo (separate repo, but api's
-  `GEO_SERVICE_API_KEY` is already live and correct on the server) — blocking: no
+- none blocking
 
 ## Failed approaches (do not retry)
 
@@ -63,14 +68,14 @@ does nothing silently).
 
 ## Files touched
 
-Dockerfile, .github/workflows/deploy.yml (new), src/cases/cases.service.spec.ts
+Dockerfile, .github/workflows/deploy.yml (new), src/cases/cases.service.spec.ts,
+tsconfig.build.json
 
 ## Verification status
 
 tests: 28/28 passing (jest) lint: clean build: clean review: n/a
-deploy: not yet live on the server (blocked on GHCR PAT)
+deploy: **live** — https://api.cryohealth.io/health returns 200 with a real DB connection
 
 ## Resume with
 
-/uexel:orient (then: check with user whether the GHCR PAT was provided, docker login on
-the server, re-run the deploy workflow)
+/uexel:orient
