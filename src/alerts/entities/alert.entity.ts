@@ -50,6 +50,12 @@ export class Alert {
   @JoinColumn({ name: 'issuedById' })
   issuedBy?: User;
   @Column({ nullable: true }) issuedById?: string;
+  /** Web-frontend columns added by WebSchema migration. */
+  @Column({ nullable: true }) districtId?: string;
+  @Column({ type: 'text', nullable: true }) bodyEn?: string;
+  @Column({ type: 'text', nullable: true }) bodyUr?: string;
+  @Column({ type: 'text', nullable: true }) estimatedWindow?: string;
+  @Column({ type: 'int', nullable: true }) affectedPopulation?: number;
   @CreateDateColumn({ type: 'timestamptz' }) createdAt: Date;
   @Column({ type: 'timestamptz', nullable: true }) clearedAt?: Date;
 }

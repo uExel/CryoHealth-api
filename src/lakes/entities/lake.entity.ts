@@ -51,6 +51,11 @@ export class Lake {
   })
   currentTier: Tier;
   @Column({ default: false }) stale: boolean;
+  /** Web-frontend columns added by WebSchema migration. */
+  @Column({ nullable: true }) districtId?: string;
+  @Column({ type: 'numeric', nullable: true }) currentRiskScore?: number;
+  @Column({ type: 'int', nullable: true }) downstreamPopulation?: number;
+  @Column({ type: 'numeric', nullable: true }) areaKm2?: number;
   @OneToMany(() => Observation, (o) => o.lake) observations: Observation[];
   @CreateDateColumn({ type: 'timestamptz' }) createdAt: Date;
   @UpdateDateColumn({ type: 'timestamptz' }) updatedAt: Date;
