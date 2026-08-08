@@ -10,6 +10,12 @@ async function bootstrap() {
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.enableShutdownHooks();
   const config = app.get(ConfigService);
+  // Native app fetch calls aren't CORS-restricted, but Expo web preview and future
+  // browser clients are — allow only the configured origins, not '*'.
+  app.enableCors({
+    origin: config.get<string[]>('corsOrigins', []),
+    credentials: true,
+  });
 
   const doc = SwaggerModule.createDocument(
     app,

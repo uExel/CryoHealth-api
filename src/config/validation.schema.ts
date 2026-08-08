@@ -8,6 +8,9 @@ export const validationSchema = Joi.object({
     .valid('development', 'production', 'test')
     .default('development'),
   PORT: Joi.number().default(3000),
+  CORS_ORIGINS: Joi.string().default(
+    'http://localhost:8081,http://localhost:19006',
+  ),
   JWT_SECRET: Joi.string().min(16).required(),
   JWT_EXPIRES: Joi.string().default('12h'),
   GEO_SERVICE_API_KEY: Joi.string().min(32).required(),

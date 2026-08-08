@@ -22,6 +22,7 @@
     "migration:revert": "typeorm-ts-node-commonjs migration:revert -d src/database/data-source.ts",
     "migration:generate": "typeorm-ts-node-commonjs migration:generate -d src/database/data-source.ts",
     "seed:lakes": "ts-node scripts/seed-lakes.ts",
+    "seed:users": "ts-node scripts/seed-users.ts",
     "verify:lakes": "ts-node scripts/verify-lakes.ts"
   },
   "dependencies": {

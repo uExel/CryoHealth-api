@@ -13,7 +13,7 @@ import { HazardScore } from '../alerts/entities/hazard-score.entity';
 import { Alert } from '../alerts/entities/alert.entity';
 import { AuditEntry } from '../alerts/entities/audit-entry.entity';
 import { Facility } from './entities/facility.entity';
-import { ChwCase } from './entities/chw-case.entity';
+import { ChwCase } from '../cases/entities/chw-case.entity';
 import { SyncLog } from './entities/sync-log.entity';
 
 export const entities = [

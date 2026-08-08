@@ -1,4 +1,5 @@
 import {
+  IsArray,
   IsIn,
   IsNotEmpty,
   IsOptional,
@@ -17,6 +18,10 @@ export class IssueAlertDto {
   @IsOptional() @IsString() windowStart?: string;
   @IsOptional() @IsString() windowEnd?: string;
   @IsOptional() @IsString() downstreamSummary?: string;
+  /** Short action tags ("Move to high ground") and a numbered action checklist for the
+   *  mobile alert card/critical screen — optional, authored by whoever issues the alert. */
+  @IsOptional() @IsArray() @IsString({ each: true }) chips?: string[];
+  @IsOptional() @IsArray() @IsString({ each: true }) checklist?: string[];
   /** Never optional for a human-issued alert (api-design/audit rule) — a human overriding
    *  the model must say why. */
   @IsString() @IsNotEmpty() reason: string;

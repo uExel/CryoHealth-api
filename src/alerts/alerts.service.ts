@@ -122,6 +122,8 @@ export class AlertsService {
           windowStart: dto.windowStart ? new Date(dto.windowStart) : undefined,
           windowEnd: dto.windowEnd ? new Date(dto.windowEnd) : undefined,
           downstreamSummary: dto.downstreamSummary,
+          chips: dto.chips,
+          checklist: dto.checklist,
           issuedById: actorId,
         },
         'conflict',

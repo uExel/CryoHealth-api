@@ -56,6 +56,12 @@ export class Alert {
   @Column({ type: 'text', nullable: true }) bodyUr?: string;
   @Column({ type: 'text', nullable: true }) estimatedWindow?: string;
   @Column({ type: 'int', nullable: true }) affectedPopulation?: number;
+  /** Short action tags ("Move to high ground") and a numbered action checklist for the
+   *  mobile app's alert card/critical screen. Optional, human-authored at issue time
+   *  (IssueAlertDto) — never derived or auto-generated; null on alerts issued before
+   *  this column existed rather than backfilled with invented copy. */
+  @Column({ type: 'jsonb', nullable: true }) chips?: string[];
+  @Column({ type: 'jsonb', nullable: true }) checklist?: string[];
   @CreateDateColumn({ type: 'timestamptz' }) createdAt: Date;
   @Column({ type: 'timestamptz', nullable: true }) clearedAt?: Date;
 }
