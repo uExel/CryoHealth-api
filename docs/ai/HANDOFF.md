@@ -78,15 +78,49 @@ src/main.ts, src/cases/, scripts/seed-users.ts)
 
 ## Verification status
 
-tests: 28/28 passing build: clean migration: written, not run (no Docker) — do not
-treat the new columns as live until the migration has actually been applied
-commit: `a70791c`
+tests: 28/28 passing build: clean migration: applied and live-verified (see 2026-08-08
+addendum) — GET /lakes, GET /alerts, and a full POST /alerts chips/checklist round-trip
+all confirmed against a real Postgres commits: `a70791c`, `400b494`
 
 ## Resume with
 
-/uexel:orient (then: run the migration on a Docker-capable machine — nothing here has
-been verified against a live database despite being committed)
+/uexel:orient (then: run CryoHealth-app against this backend on a device/simulator —
+the backend is now confirmed working, but the mobile wiring from the prior session has
+never actually been exercised end to end)
 
 ## Addendum — 2026-08-03 (harness maintenance)
 
 cryo-harness renamed to uxl-harness across the org (github.com/uExel/uxl-harness); this repo's .claude/settings.json marketplace pointer updated to match.
+
+## Addendum — 2026-08-08 (migration verification, Docker became available)
+
+Docker became available in this environment later in the same session. Ran
+`docker compose up -d db` (fresh Postgres, first time any migration had ever
+run against a live instance) and `npm run migration:run` — all 7 migrations,
+including `AlertChipsAndChecklist`, applied cleanly.
+
+**Verifying it surfaced a real, pre-existing bug, unrelated to chips/checklist**:
+`GET /lakes` and `GET /alerts` both 500'd with `column Lake.districtId does not
+exist`. The WebSchema migration added `district_id`/`current_risk_score`/
+`downstream_population`/`area_km2` (Lake) and `district_id`/`body_en`/`body_ur`/
+`estimated_window`/`affected_population` (Alert) via raw SQL as snake_case
+columns, but the entities were never given explicit `@Column({ name: ... })`
+mappings — TypeORM defaulted to looking for the literal camelCase property
+name. This had never been caught because no prior session had a live,
+migrated database to boot the app against. Fixed in `400b494` (9 fields
+across `Lake`/`Alert`). `Facility.vulnerability` (also added by WebSchema) has
+the same gap but doesn't crash anything since the entity just doesn't declare
+that property at all — not fixed, flagged as a minor follow-up.
+
+Re-verified live after the fix: seeded lakes+users, booted the app, `GET
+/lakes` and `GET /alerts` both 200, and a full `POST /alerts` → `GET
+/alerts/:id` → feed round-trip with real `chips`/`checklist` values, all
+correct. Test alert deleted afterward; local `.env` created for this
+(gitignored, not committed) with generated `JWT_SECRET`/`GEO_SERVICE_API_KEY`.
+
+## Not done / deferred (added this addendum)
+
+- `Facility.vulnerability` has no entity mapping (WebSchema added the column,
+  entity was never updated) — doesn't crash, just inaccessible via this API
+- CryoHealth-app's mobile wiring (prior session) has still never actually been
+  run against this now-working backend on a device/simulator
