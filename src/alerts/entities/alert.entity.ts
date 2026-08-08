@@ -50,12 +50,16 @@ export class Alert {
   @JoinColumn({ name: 'issuedById' })
   issuedBy?: User;
   @Column({ nullable: true }) issuedById?: string;
-  /** Web-frontend columns added by WebSchema migration. */
-  @Column({ nullable: true }) districtId?: string;
-  @Column({ type: 'text', nullable: true }) bodyEn?: string;
-  @Column({ type: 'text', nullable: true }) bodyUr?: string;
-  @Column({ type: 'text', nullable: true }) estimatedWindow?: string;
-  @Column({ type: 'int', nullable: true }) affectedPopulation?: number;
+  /** Web-frontend columns added by WebSchema migration (raw SQL, snake_case column
+   *  names — explicit `name` required since TypeORM doesn't infer it from the
+   *  camelCase property). */
+  @Column({ name: 'district_id', nullable: true }) districtId?: string;
+  @Column({ name: 'body_en', type: 'text', nullable: true }) bodyEn?: string;
+  @Column({ name: 'body_ur', type: 'text', nullable: true }) bodyUr?: string;
+  @Column({ name: 'estimated_window', type: 'text', nullable: true })
+  estimatedWindow?: string;
+  @Column({ name: 'affected_population', type: 'int', nullable: true })
+  affectedPopulation?: number;
   /** Short action tags ("Move to high ground") and a numbered action checklist for the
    *  mobile app's alert card/critical screen. Optional, human-authored at issue time
    *  (IssueAlertDto) — never derived or auto-generated; null on alerts issued before

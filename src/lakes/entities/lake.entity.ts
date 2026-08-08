@@ -51,11 +51,16 @@ export class Lake {
   })
   currentTier: Tier;
   @Column({ default: false }) stale: boolean;
-  /** Web-frontend columns added by WebSchema migration. */
-  @Column({ nullable: true }) districtId?: string;
-  @Column({ type: 'numeric', nullable: true }) currentRiskScore?: number;
-  @Column({ type: 'int', nullable: true }) downstreamPopulation?: number;
-  @Column({ type: 'numeric', nullable: true }) areaKm2?: number;
+  /** Web-frontend columns added by WebSchema migration (raw SQL, snake_case column
+   *  names — explicit `name` required since TypeORM doesn't infer it from the
+   *  camelCase property). */
+  @Column({ name: 'district_id', nullable: true }) districtId?: string;
+  @Column({ name: 'current_risk_score', type: 'numeric', nullable: true })
+  currentRiskScore?: number;
+  @Column({ name: 'downstream_population', type: 'int', nullable: true })
+  downstreamPopulation?: number;
+  @Column({ name: 'area_km2', type: 'numeric', nullable: true })
+  areaKm2?: number;
   @OneToMany(() => Observation, (o) => o.lake) observations: Observation[];
   @CreateDateColumn({ type: 'timestamptz' }) createdAt: Date;
   @UpdateDateColumn({ type: 'timestamptz' }) updatedAt: Date;
