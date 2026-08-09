@@ -46,20 +46,16 @@
       "Read(./.env.test)"
     ]
   },
-  "extraKnownMarketplaces": [
-    {
-      "source": "github",
-      "repo": "uExel/uxl-harness"
+  "extraKnownMarketplaces": {
+    "uxl-harness": {
+      "source": {
+        "source": "github",
+        "repo": "uExel/uxl-harness"
+      }
     }
-  ],
-  "enabledPlugins": [
-    {
-      "marketplace": "uxl-harness",
-      "plugin": "uexel"
-    },
-    {
-      "marketplace": "claude-plugins-official",
-      "plugin": "typescript-lsp"
-    }
-  ]
+  },
+  "enabledPlugins": {
+    "uexel@uxl-harness": true,
+    "typescript-lsp@claude-plugins-official": true
+  }
 }
