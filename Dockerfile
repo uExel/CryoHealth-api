@@ -16,6 +16,7 @@ COPY package*.json ./
 RUN npm ci
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/src ./src
+COPY --from=build /app/scripts ./scripts
 COPY --from=build /app/tsconfig.json ./tsconfig.json
 EXPOSE 3000
 CMD ["node", "dist/main.js"]
