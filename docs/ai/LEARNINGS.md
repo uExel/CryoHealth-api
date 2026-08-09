@@ -20,3 +20,15 @@ the why. Only lessons a teammate benefits from — personal notes belong to auto
   structure can silently shift — don't trust `dist/main.js` exists just because
   `nest build` exits 0; test-boot the built artifact (`node dist/main.js` or a container
   run) at least once to confirm the entrypoint path is real.
+- 2026-08-09: the production Dockerfile's final stage copied `dist/`, `src/`, and
+  `tsconfig.json` — enough to boot the server and run `npm run migration:run` — but never
+  `scripts/`. Not caught until someone actually tried to seed production data:
+  `docker compose run --rm api npm run seed:lakes` failed with a "cannot find module
+  seed-lakes.ts" error, since ts-node had no `scripts/` directory to find it in. Fixed by
+  also copying `scripts/` into the final image. When a production image is built to
+  support more than "boot the server" (migrations, seeds, other one-off ts-node scripts),
+  each of those use cases needs its own source files explicitly copied in — "the app
+  boots" is not proof the image is complete for every operational task it's expected to
+  support. Enumerate every `npm run` script expected to run against the deployed image
+  and confirm each one's source files are actually in the final stage, don't just copy
+  what the default `CMD` needs.
