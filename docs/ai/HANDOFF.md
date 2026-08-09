@@ -78,7 +78,7 @@ regression like this session's rootDir bug fails in CI instead of on first deplo
 ## Files touched
 
 Dockerfile, .github/workflows/deploy.yml (new), src/cases/cases.service.spec.ts,
-tsconfig.build.json
+tsconfig.build.json, docs/ai/LEARNINGS.md
 
 ## Verification status
 
