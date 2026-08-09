@@ -8,11 +8,15 @@ Fully deployed and live. `api` runs on the Hetzner box (`ubuntu-4gb-hel1-1`,
 204.168.190.206) behind the `cryohealth-hetzner` Cloudflare Tunnel, publicly reachable at
 `https://api.cryohealth.io` — confirmed via `GET /health` → `{"status":"ok","database":"up"}`.
 CD pipeline (`deploy.yml`, workflow_run on green `ci`) ran end-to-end successfully
-(`deploy #4`): build → push to GHCR → SSH → `docker compose run --rm api npm run
+(`deploy #7`): build → push to GHCR → SSH → `docker compose run --rm api npm run
 migration:run` → restart. All 7 migrations applied cleanly against production Postgres
 for the first time. GHCR pull auth fixed (user supplied a `read:packages` PAT, `docker
-login`'d as the `deploy` user on the server). A real, previously-latent build bug was
-also caught and fixed here — see Done this session.
+login`'d as the `deploy` user on the server). Two real, previously-latent bugs were
+caught and fixed here — see Done this session. **Lakes are seeded in production**
+(`npm run seed:lakes` → 6 inserted) and a full observation+hazard pass has been run
+against real Sentinel-2 data (triggered from CryoHealth-geo) — `GET
+https://api.cryohealth.io/lakes` confirms real tiers (badswat at `high`, etc.), not
+defaults.
 
 ## Done this session
 
@@ -30,9 +34,14 @@ also caught and fixed here — see Done this session.
   flat path and would have always crash-looped — confirmed live (`MODULE_NOT_FOUND`) on
   the first real container run. Fixed by excluding `scripts/` from the build (it's run
   via `ts-node` directly, never meant to be compiled) (5905af9)
+- **Fixed a second real gap surfaced by actually trying to seed production**: the prod
+  Dockerfile copied `dist/`, `src/`, and `tsconfig.json` for migrations, but never
+  `scripts/` — so `docker compose run --rm api npm run seed:lakes` failed with
+  `MODULE_NOT_FOUND` (ts-node had no `seed-lakes.ts` to find). Fixed by also copying
+  `scripts/` into the final image (65efde1)
 - GitHub Actions secrets set: DEPLOY_HOST, DEPLOY_USER, DEPLOY_SSH_KEY
-- Server: GHCR login configured, migrations run, `api` container stable and serving
-  traffic through the tunnel
+- Server: GHCR login configured, migrations run, lakes seeded, `api` container stable and
+  serving traffic through the tunnel
 
 ## Not done / deferred
 
@@ -74,7 +83,9 @@ tsconfig.build.json
 ## Verification status
 
 tests: 28/28 passing (jest) lint: clean build: clean review: n/a
-deploy: **live** — https://api.cryohealth.io/health returns 200 with a real DB connection
+deploy: **live and seeded** — https://api.cryohealth.io/health returns 200 with a real DB
+connection; https://api.cryohealth.io/lakes returns 6 real lakes with real hazard tiers
+from a real Sentinel-2-driven observation+hazard pass
 
 ## Resume with
 
