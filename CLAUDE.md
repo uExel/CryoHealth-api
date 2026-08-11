@@ -11,6 +11,18 @@ shared with CryoHealth-geo. Full architecture: [ARCHITECTURE.md](ARCHITECTURE.md
 - Task state lives in GitHub issues — labels + milestones, no boards.
 - Shared AI working files: docs/ai/ (PLAN, TODO, HANDOFF, LEARNINGS, sessions, decisions).
 
+## Commands (`npm`)
+
+```bash
+cp .env.example .env               # set JWT_SECRET, GEO_SERVICE_API_KEY
+docker compose up -d db            # Postgres+PostGIS on :5433
+npm ci && npm run migration:run && npm run start:dev   # API on :3000, docs at /docs
+npm run lint                       # eslint --fix
+npm test                           # jest; npx jest path/to/x.spec.ts for a single file
+npm run test:e2e
+npm run migration:generate | migration:run | migration:revert
+```
+
 ## Map
 
 <!-- One line per top-level folder whose purpose a newcomer can't infer from its name.
