@@ -23,6 +23,7 @@
     "migration:generate": "typeorm-ts-node-commonjs migration:generate -d src/database/data-source.ts",
     "seed:lakes": "ts-node scripts/seed-lakes.ts",
     "seed:users": "ts-node scripts/seed-users.ts",
+    "seed:dev-data": "ts-node scripts/seed-dev-data.ts",
     "verify:lakes": "ts-node scripts/verify-lakes.ts"
   },
   "dependencies": {

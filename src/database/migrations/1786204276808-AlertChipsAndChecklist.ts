@@ -19,7 +19,11 @@ export class AlertChipsAndChecklist1786204276808 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`ALTER TABLE "alerts" DROP COLUMN IF EXISTS "checklist"`);
-    await queryRunner.query(`ALTER TABLE "alerts" DROP COLUMN IF EXISTS "chips"`);
+    await queryRunner.query(
+      `ALTER TABLE "alerts" DROP COLUMN IF EXISTS "checklist"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "alerts" DROP COLUMN IF EXISTS "chips"`,
+    );
   }
 }

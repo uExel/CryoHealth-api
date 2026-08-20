@@ -1,4 +1,12 @@
-import { Body, Controller, Get, ParseIntPipe, Post, Query, Req } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  ParseIntPipe,
+  Post,
+  Query,
+  Req,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../common/decorators/roles.decorator';
 import { JwtPayload } from '../common/types/jwt-payload.type';
@@ -13,7 +21,9 @@ export class CasesController {
   constructor(private readonly cases: CasesService) {}
 
   @Post()
-  @ApiOperation({ summary: 'Sync a CHW case captured on-device (idempotent by clientCaseId)' })
+  @ApiOperation({
+    summary: 'Sync a CHW case captured on-device (idempotent by clientCaseId)',
+  })
   create(@Body() dto: CreateCaseDto, @Req() req: { user: JwtPayload }) {
     return this.cases.create(req.user.sub, dto);
   }

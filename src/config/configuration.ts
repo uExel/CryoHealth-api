@@ -3,7 +3,9 @@
  *  TypeORM CLI entrypoint, which runs outside Nest's DI and so can't use ConfigService). */
 export default () => ({
   port: parseInt(process.env.PORT ?? '3000', 10),
-  corsOrigins: (process.env.CORS_ORIGINS ?? 'http://localhost:8081,http://localhost:19006')
+  corsOrigins: (
+    process.env.CORS_ORIGINS ?? 'http://localhost:8081,http://localhost:19006'
+  )
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean),
