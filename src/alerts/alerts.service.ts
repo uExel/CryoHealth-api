@@ -211,6 +211,24 @@ export class AlertsService {
     return alert;
   }
 
+  async listAlertAcks() {
+    return this.dataSource.query(
+      `SELECT alert_id, chw_id, acknowledged_at FROM alert_acknowledgements`,
+    );
+  }
+
+  async insertAlertAck(alertId: string, chwId: string) {
+    await this.dataSource.query(
+      `
+      INSERT INTO alert_acknowledgements (alert_id, chw_id)
+      VALUES ($1, $2)
+      ON CONFLICT (alert_id, chw_id) DO NOTHING
+      `,
+      [alertId, chwId],
+    );
+    return { success: true };
+  }
+
   private async insertAlert(
     manager: EntityManager,
     fields: Partial<Alert>,
