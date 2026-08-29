@@ -20,6 +20,6 @@ export class AuditEntry {
   @Column({ nullable: true }) entityId?: string;
   /** Mandatory for manual alert issue/upgrade/downgrade — enforced at service level. */
   @Column({ type: 'text', nullable: true }) reason?: string;
-  @Column({ type: 'jsonb', nullable: true }) meta?: Record<string, unknown>;
+  @Column({ type: 'jsonb', nullable: true }) meta?: any;
   @CreateDateColumn({ type: 'timestamptz' }) createdAt: Date;
 }

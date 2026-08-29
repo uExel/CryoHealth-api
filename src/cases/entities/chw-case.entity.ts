@@ -21,7 +21,7 @@ export class ChwCase {
   @Column() chwId: string;
   @Column({ type: 'timestamptz' }) capturedAt: Date;
   /** Full triage payload as captured on-device; shape owned by the app's IMCI engine. */
-  @Column({ type: 'jsonb' }) payload: Record<string, unknown>;
+  @Column({ type: 'jsonb' }) payload: any;
   @Column({ nullable: true }) outcome?: string;
   @Column({
     type: 'enum',

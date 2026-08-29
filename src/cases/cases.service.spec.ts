@@ -1,4 +1,5 @@
 import { Test } from '@nestjs/testing';
+import { DataSource } from 'typeorm';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { CasesService } from './cases.service';
 import { ChwCase } from './entities/chw-case.entity';
@@ -19,6 +20,7 @@ describe('CasesService', () => {
       providers: [
         CasesService,
         { provide: getRepositoryToken(ChwCase), useValue: repo },
+        { provide: DataSource, useValue: { query: jest.fn(), transaction: jest.fn() } },
       ],
     }).compile();
     service = moduleRef.get(CasesService);

@@ -15,6 +15,11 @@ import { AuditEntry } from '../alerts/entities/audit-entry.entity';
 import { Facility } from './entities/facility.entity';
 import { ChwCase } from '../cases/entities/chw-case.entity';
 import { SyncLog } from './entities/sync-log.entity';
+import { District } from '../districts/entities/district.entity';
+import { Glacier } from '../glaciers/entities/glacier.entity';
+import { GlacierObservation } from '../glaciers/entities/glacier-observation.entity';
+import { Protocol } from '../protocols/entities/protocol.entity';
+import { ChwProfile } from '../chw-profiles/entities/chw-profile.entity';
 
 export const entities = [
   Lake,
@@ -26,4 +31,9 @@ export const entities = [
   ChwCase,
   SyncLog,
   AuditEntry,
+  District,
+  Glacier,
+  GlacierObservation,
+  Protocol,
+  ChwProfile,
 ];

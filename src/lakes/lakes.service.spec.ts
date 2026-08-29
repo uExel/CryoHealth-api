@@ -1,5 +1,6 @@
 import { NotFoundException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import { DataSource } from 'typeorm';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Lake } from './entities/lake.entity';
 import { Observation } from './entities/observation.entity';
@@ -16,6 +17,7 @@ describe('LakesService', () => {
         LakesService,
         { provide: getRepositoryToken(Lake), useValue: lakesRepo },
         { provide: getRepositoryToken(Observation), useValue: obsRepo },
+        { provide: DataSource, useValue: { query: jest.fn(), transaction: jest.fn() } },
       ],
     }).compile();
     service = mod.get(LakesService);

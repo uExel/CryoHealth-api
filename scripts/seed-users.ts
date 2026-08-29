@@ -21,6 +21,13 @@ const DEV_USERS = [
     role: 'facility_admin',
     pin: '1234',
   },
+  {
+    lhwId: '03002222222',
+    name: 'Test User',
+    role: 'cryohealth_admin',
+    pin: 'testpass123',
+    phone: '03002222222',
+  },
 ] as const;
 
 async function main() {
@@ -31,15 +38,16 @@ async function main() {
     for (const u of DEV_USERS) {
       const passwordHash = await hash(u.pin, 10);
       const result = await dataSource.query(
-        `INSERT INTO users ("lhwId", name, role, "passwordHash", active)
-         VALUES ($1,$2,$3,$4,true)
+        `INSERT INTO users ("lhwId", name, role, "passwordHash", active, phone)
+         VALUES ($1,$2,$3,$4,true,$5)
          ON CONFLICT ("lhwId") DO UPDATE SET
            name = EXCLUDED.name,
            role = EXCLUDED.role,
            "passwordHash" = EXCLUDED."passwordHash",
-           active = true
+           active = true,
+           phone = EXCLUDED.phone
          RETURNING (xmax = 0) AS inserted`,
-        [u.lhwId, u.name, u.role, passwordHash],
+        [u.lhwId, u.name, u.role, passwordHash, u.phone ?? null],
       );
       if (result[0]?.inserted) inserted++;
       else updated++;

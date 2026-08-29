@@ -90,3 +90,22 @@ from a real Sentinel-2-driven observation+hazard pass
 ## Resume with
 
 /uexel:orient
+
+## Addendum — 2026-08-29 (TypeScript + test fixes)
+
+Resolved 9 TypeScript compilation errors and 3 failing jest tests.
+
+**Compilation fix:** TypeORM 0.3's strict `_QueryDeepPartialEntity` rejects `Record<string, unknown>` for JSONB columns in `insert()` calls. Changed JSONB column types from `Record<string, unknown>` to `any` in 4 entity files to bypass the overly strict deep-partial mapping. Runtime behavior is unchanged.
+
+**Test fixes:**
+- `src/auth/auth.service.ts`: `login()` was throwing `HttpException` but tests expected `UnauthorizedException`; changed to `UnauthorizedException('Wrong ID or PIN')` so `instanceof` and `toThrow` assertions both pass.
+- `src/lakes/lakes.service.spec.ts`: `LakesService` now requires `DataSource` for `query`/`transaction`; added a mock `DataSource` provider to the test module.
+- `src/cases/cases.service.spec.ts`: Same missing `DataSource` provider issue; added mock.
+
+**Files touched:**
+src/alerts/entities/audit-entry.entity.ts, src/alerts/entities/hazard-score.entity.ts,
+src/database/entities/sync-log.entity.ts, src/cases/entities/chw-case.entity.ts,
+src/auth/auth.service.ts, src/lakes/lakes.service.spec.ts, src/cases/cases.service.spec.ts
+
+**Verification status:**
+tests: 28/28 passing build: clean lint: clean

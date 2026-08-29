@@ -20,8 +20,12 @@ export class Facility {
     srid: 4326,
     nullable: true,
   })
-  geom?: object;
+  geom?: { type: 'Point'; coordinates: [number, number] };
   @Column({ nullable: true }) contact?: string;
+
+  @Column({ default: 'low' })
+  vulnerability: string;
+
   /** Admin-curated "downstream of" mapping — not computed flow-path modeling, which
    *  the PRD explicitly scopes out of the prototype (P2 roadmap). Drives alert routing:
    *  a lake's tier transition notifies CHWs/facility_admins at facilities pointing here. */

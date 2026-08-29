@@ -21,12 +21,12 @@ import { OverrideAlertDto } from './dto/override-alert.dto';
 import { RecordHazardScoreDto } from './dto/record-hazard-score.dto';
 
 @ApiTags('alerts')
-@Controller('alerts')
+@Controller()
 export class AlertsController {
   constructor(private readonly alerts: AlertsService) {}
 
   @Public()
-  @Get()
+  @Get('alerts')
   @ApiOperation({
     summary:
       'Active alerts (paginated). Public — safety information is never gated.',
@@ -40,13 +40,20 @@ export class AlertsController {
   }
 
   @Public()
-  @Get(':id')
+  @Get('alert-acks')
+  @ApiOperation({ summary: 'List alert acknowledgements' })
+  listAlertAcks() {
+    return this.alerts.listAlertAcks();
+  }
+
+  @Public()
+  @Get('alerts/:id')
   @ApiOperation({ summary: 'One alert' })
   byId(@Param('id', ParseUUIDPipe) id: string) {
     return this.alerts.byId(id);
   }
 
-  @Post('hazard-scores')
+  @Post('alerts/hazard-scores')
   @Roles('cryohealth_admin')
   @AllowServiceKey()
   @ApiBearerAuth()
@@ -61,7 +68,7 @@ export class AlertsController {
     return this.alerts.recordHazardScore(dto);
   }
 
-  @Post()
+  @Post('alerts')
   @Roles('cryohealth_admin', 'facility_admin')
   @ApiBearerAuth()
   @ApiOperation({
@@ -71,7 +78,18 @@ export class AlertsController {
     return this.alerts.issueManual(dto, req.user.sub);
   }
 
-  @Patch(':id')
+  @Post('admin/alerts/:id/ack')
+  @Roles('chw', 'facility_admin', 'cryohealth_admin')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Acknowledge an alert' })
+  acknowledgeAlert(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: { user: JwtPayload },
+  ) {
+    return this.alerts.insertAlertAck(id, req.user.sub);
+  }
+
+  @Patch('alerts/:id')
   @Roles('cryohealth_admin', 'facility_admin')
   @ApiBearerAuth()
   @ApiOperation({

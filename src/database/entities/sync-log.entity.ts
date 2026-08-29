@@ -20,6 +20,6 @@ export class SyncLog {
   @Column({ type: 'timestamptz', nullable: true }) finishedAt?: Date;
   @Column({ type: 'int', default: 0 }) itemCount: number;
   @Column({ default: 'ok' }) status: string;
-  @Column({ type: 'jsonb', nullable: true }) detail?: Record<string, unknown>;
+  @Column({ type: 'jsonb', nullable: true }) detail?: any;
   @CreateDateColumn({ type: 'timestamptz' }) createdAt: Date;
 }
