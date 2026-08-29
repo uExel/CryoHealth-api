@@ -19,7 +19,9 @@ export class HealthController {
   @Roles('cryohealth_admin')
   @ApiBearerAuth()
   @Get('admin/health')
-  @ApiOperation({ summary: 'Aggregated system health probing API and CryoHealth-geo' })
+  @ApiOperation({
+    summary: 'Aggregated system health probing API and CryoHealth-geo',
+  })
   getAdminSystemHealth() {
     return this.healthService.getAdminSystemHealth();
   }

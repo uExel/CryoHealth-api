@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository } from 'typeorm';
 import { Facility } from '../database/entities/facility.entity';
@@ -33,7 +29,7 @@ export class FacilitiesService {
       entityId,
       reason,
       meta,
-    } as any);
+    } as Partial<AuditEntry>);
   }
 
   private formatFacility(f: Facility) {
@@ -92,7 +88,10 @@ export class FacilitiesService {
       const repo = manager.getRepository(Facility);
       const geom =
         dto.lat !== undefined && dto.lng !== undefined
-          ? { type: 'Point' as const, coordinates: [dto.lng, dto.lat] as [number, number] }
+          ? {
+              type: 'Point' as const,
+              coordinates: [dto.lng, dto.lat] as [number, number],
+            }
           : undefined;
 
       const facility = repo.create({
@@ -107,9 +106,20 @@ export class FacilitiesService {
 
       const saved = await repo.save(facility);
 
-      await this.audit(manager, actorId, 'facility.create', saved.id, undefined, {
-        created: { name: saved.name, type: saved.type, district: saved.district },
-      });
+      await this.audit(
+        manager,
+        actorId,
+        'facility.create',
+        saved.id,
+        undefined,
+        {
+          created: {
+            name: saved.name,
+            type: saved.type,
+            district: saved.district,
+          },
+        },
+      );
 
       return this.formatFacility(saved);
     });
@@ -128,7 +138,8 @@ export class FacilitiesService {
       if (dto.name !== undefined) facility.name = dto.name;
       if (dto.type !== undefined) facility.type = dto.type;
       if (dto.district !== undefined) facility.district = dto.district;
-      if (dto.vulnerability !== undefined) facility.vulnerability = dto.vulnerability;
+      if (dto.vulnerability !== undefined)
+        facility.vulnerability = dto.vulnerability;
       if (dto.contact !== undefined) facility.contact = dto.contact;
       if (dto.lakeId !== undefined) facility.lakeId = dto.lakeId || undefined;
 
@@ -161,9 +172,16 @@ export class FacilitiesService {
         }
       }
 
-      await this.audit(manager, actorId, 'facility.update', saved.id, undefined, {
-        changed: Object.keys(changed).length ? changed : null,
-      });
+      await this.audit(
+        manager,
+        actorId,
+        'facility.update',
+        saved.id,
+        undefined,
+        {
+          changed: Object.keys(changed).length ? changed : null,
+        },
+      );
 
       return this.formatFacility(saved);
     });

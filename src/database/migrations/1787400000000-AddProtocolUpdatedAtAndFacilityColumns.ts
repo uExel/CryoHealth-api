@@ -22,11 +22,17 @@ export class AddProtocolUpdatedAtAndFacilityColumns1787400000000 implements Migr
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`ALTER TABLE "glaciers" ALTER COLUMN "last_observed" TYPE text USING "last_observed"::text`);
-    await queryRunner.query(`ALTER TABLE "facilities" DROP COLUMN IF EXISTS "lakeId"`);
+    await queryRunner.query(
+      `ALTER TABLE "glaciers" ALTER COLUMN "last_observed" TYPE text USING "last_observed"::text`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "facilities" DROP COLUMN IF EXISTS "lakeId"`,
+    );
     await queryRunner.query(
       `ALTER TABLE "facilities" DROP COLUMN IF EXISTS "vulnerability"`,
     );
-    await queryRunner.query(`ALTER TABLE "protocols" DROP COLUMN IF EXISTS "updated_at"`);
+    await queryRunner.query(
+      `ALTER TABLE "protocols" DROP COLUMN IF EXISTS "updated_at"`,
+    );
   }
 }

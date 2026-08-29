@@ -14,12 +14,17 @@ export type AuditExportRow = {
   meta: unknown;
 };
 
+type CountRow = { count: number };
+type ActorRow = { id: string; name: string; lhw_id: string };
+type EntityTypeRow = { entity_type: string };
+
 function csvCell(value: unknown): string {
   let s: string;
   if (value === null || value === undefined) s = '';
   else if (value instanceof Date) s = value.toISOString();
   else if (typeof value === 'object') s = JSON.stringify(value);
-  else s = String(value);
+  else if (typeof value === 'string') s = value;
+  else s = String(value as string | number | boolean | bigint);
   return `"${s.replace(/"/g, '""')}"`;
 }
 
@@ -37,7 +42,7 @@ function toCsv(rows: AuditExportRow[]): string {
   ];
   const lines = [header.map(csvCell).join(',')];
   for (const r of rows) {
-    const cells = [
+    const cells: unknown[] = [
       r.created_at,
       r.actor_name,
       r.actor_lhw_id,
@@ -58,9 +63,12 @@ function toCsv(rows: AuditExportRow[]): string {
 export class AuditService {
   constructor(private readonly dataSource: DataSource) {}
 
-  private buildWhereClause(query: AuditQueryDto): { whereSql: string; params: any[] } {
+  private buildWhereClause(query: AuditQueryDto): {
+    whereSql: string;
+    params: unknown[];
+  } {
     const conditions: string[] = [];
-    const params: any[] = [];
+    const params: unknown[] = [];
     let idx = 1;
 
     if (query.actorId) {
@@ -80,7 +88,8 @@ export class AuditService {
       params.push(query.to);
     }
 
-    const whereSql = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    const whereSql =
+      conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
     return { whereSql, params };
   }
 
@@ -99,8 +108,8 @@ export class AuditService {
         ORDER BY a."createdAt" DESC
         LIMIT ${limit}
       `;
-      const rows = await this.dataSource.query(rowsSql, params);
-      const csvString = toCsv(rows as AuditExportRow[]);
+      const rows = await this.dataSource.query(rowsSql, params as any[]);
+      const csvString = toCsv(rows);
       const stamp = new Date().toISOString().slice(0, 10);
       return {
         isCsv: true,
@@ -113,7 +122,7 @@ export class AuditService {
     const pageSize = query.pageSize ?? 50;
     const offset = (page - 1) * pageSize;
 
-    const queryParams = [...params, pageSize, offset];
+    const queryParams: unknown[] = [...params, pageSize, offset];
     const limitIdx = params.length + 1;
     const offsetIdx = params.length + 2;
 
@@ -132,16 +141,20 @@ export class AuditService {
 
     const [rows, countRes, actors, entityTypes] = await Promise.all([
       this.dataSource.query(rowsSql, queryParams),
-      this.dataSource.query(countSql, params),
+      this.dataSource.query(countSql, params as any[]),
       this.listAuditActors(),
       this.listAuditEntityTypes(),
     ]);
+    const typedRows = rows as AuditExportRow[];
+    const typedCountRes = countRes as CountRow[];
 
-    const total = Number(countRes[0]?.count ?? 0);
+    const total = Number(
+      (typedCountRes[0] as CountRow | undefined)?.count ?? 0,
+    );
 
     return {
       isCsv: false,
-      rows,
+      rows: typedRows,
       total,
       page,
       pageSize,
@@ -150,8 +163,8 @@ export class AuditService {
     };
   }
 
-  async listAuditActors() {
-    return this.dataSource.query(`
+  async listAuditActors(): Promise<ActorRow[]> {
+    return await this.dataSource.query(`
       SELECT DISTINCT a."actorId" AS id, u.name, u."lhwId" AS lhw_id
       FROM audit a
       JOIN users u ON u.id = a."actorId"
@@ -159,10 +172,10 @@ export class AuditService {
     `);
   }
 
-  async listAuditEntityTypes() {
-    const rows = await this.dataSource.query(`
-      SELECT DISTINCT "entityType" AS entity_type FROM audit ORDER BY "entityType"
-    `);
-    return rows.map((r: any) => r.entity_type as string);
+  async listAuditEntityTypes(): Promise<EntityTypeRow[]> {
+    const rows = await this.dataSource.query(
+      `SELECT DISTINCT "entityType" AS entity_type FROM audit ORDER BY "entityType"`,
+    );
+    return rows.map((r) => r.entity_type);
   }
 }

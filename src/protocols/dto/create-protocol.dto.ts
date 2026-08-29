@@ -18,7 +18,9 @@ export class CreateProtocolDto {
   body: string;
 
   @IsString()
-  @IsNotEmpty({ message: 'Source is required — cite where this protocol\'s text comes from' })
+  @IsNotEmpty({
+    message: "Source is required — cite where this protocol's text comes from",
+  })
   source: string;
 
   @IsOptional()

@@ -15,7 +15,8 @@ export class CreateUserDto {
   name: string;
 
   @IsEnum(['cryohealth_admin', 'facility_admin', 'chw', 'viewer'], {
-    message: 'Role must be one of: cryohealth_admin, facility_admin, chw, viewer',
+    message:
+      'Role must be one of: cryohealth_admin, facility_admin, chw, viewer',
   })
   role: Role;
 

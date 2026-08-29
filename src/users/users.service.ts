@@ -19,7 +19,8 @@ const POSTGRES_UNIQUE_VIOLATION = '23505';
 export class UsersService {
   constructor(
     @InjectRepository(User) private readonly users: Repository<User>,
-    @InjectRepository(Facility) private readonly facilities: Repository<Facility>,
+    @InjectRepository(Facility)
+    private readonly facilities: Repository<Facility>,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -45,7 +46,7 @@ export class UsersService {
       entityType: 'User',
       entityId,
       meta,
-    } as any);
+    } as Partial<AuditEntry>);
   }
 
   private formatUser(user: User & { facility_name?: string }) {
@@ -56,7 +57,7 @@ export class UsersService {
       lhw_id: user.lhwId ?? null,
       phone: user.phone ?? null,
       facility_id: user.facilityId ?? null,
-      facility_name: user.facility_name ?? (user.facility?.name) ?? null,
+      facility_name: user.facility_name ?? user.facility?.name ?? null,
       active: user.active,
       created_at: user.createdAt,
     };
@@ -134,7 +135,7 @@ export class UsersService {
 
     return this.dataSource.transaction(async (manager) => {
       const repo = manager.getRepository(User);
-      
+
       const before = await repo
         .createQueryBuilder('user')
         .setLock('pessimistic_write')

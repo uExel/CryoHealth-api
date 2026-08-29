@@ -45,7 +45,9 @@ export class ChwProfilesController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Admin: List CHW profiles with pagination total' })
   @Get('admin/chw-profiles')
-  listAdmin(@Query('limit', new ParseIntPipe({ optional: true })) limit?: number) {
+  listAdmin(
+    @Query('limit', new ParseIntPipe({ optional: true })) limit?: number,
+  ) {
     return this.chwProfilesService.listAdmin(limit || 200);
   }
 

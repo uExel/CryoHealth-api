@@ -5,8 +5,8 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository } from 'typeorm';
-import { AuditEntry } from '../alerts/entities/audit-entry.entity';
 import { Protocol } from './entities/protocol.entity';
+import { AuditEntry } from '../alerts/entities/audit-entry.entity';
 import { CreateProtocolDto } from './dto/create-protocol.dto';
 import { UpdateProtocolDto } from './dto/update-protocol.dto';
 
@@ -35,10 +35,9 @@ export class ProtocolsService {
       entityId,
       reason,
       meta,
-    } as any);
+    } as Partial<AuditEntry>);
   }
 
-  /** Public: list all protocols ordered by is_disaster DESC (disaster protocols first). */
   async findAll() {
     return this.protocols.find({ order: { isDisaster: 'DESC', title: 'ASC' } });
   }
@@ -62,13 +61,31 @@ export class ProtocolsService {
           isDisaster: dto.is_disaster ?? false,
         });
         const saved = await repo.save(protocol);
-        await this.audit(manager, actorId, 'protocol.create', saved.id, undefined, {
-          created: { slug: saved.slug, title: saved.title, source: saved.source },
-        });
+        await this.audit(
+          manager,
+          actorId,
+          'protocol.create',
+          saved.id,
+          undefined,
+          {
+            created: {
+              slug: saved.slug,
+              title: saved.title,
+              source: saved.source,
+            },
+          },
+        );
         return saved;
-      } catch (err: any) {
-        if (err?.code === POSTGRES_UNIQUE_VIOLATION) {
-          throw new ConflictException('A protocol with that slug already exists');
+      } catch (err) {
+        if (
+          typeof err === 'object' &&
+          err !== null &&
+          'code' in err &&
+          (err as { code?: string }).code === POSTGRES_UNIQUE_VIOLATION
+        ) {
+          throw new ConflictException(
+            'A protocol with that slug already exists',
+          );
         }
         throw err;
       }
@@ -91,12 +108,26 @@ export class ProtocolsService {
       const saved = await repo.save(protocol);
 
       const changed: Record<string, any> = {};
-      for (const field of ['title', 'category', 'body', 'source', 'isDisaster'] as const) {
-        if (before[field] !== saved[field]) changed[field] = { from: before[field], to: saved[field] };
+      for (const field of [
+        'title',
+        'category',
+        'body',
+        'source',
+        'isDisaster',
+      ] as const) {
+        if (before[field] !== saved[field])
+          changed[field] = { from: before[field], to: saved[field] };
       }
-      await this.audit(manager, actorId, 'protocol.update', saved.id, undefined, {
-        changed: Object.keys(changed).length ? changed : null,
-      });
+      await this.audit(
+        manager,
+        actorId,
+        'protocol.update',
+        saved.id,
+        undefined,
+        {
+          changed: Object.keys(changed).length ? changed : null,
+        },
+      );
       return saved;
     });
   }

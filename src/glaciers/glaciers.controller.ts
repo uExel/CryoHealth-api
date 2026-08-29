@@ -61,7 +61,10 @@ export class GlaciersController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Admin: Create glacier' })
   @Post('admin/glaciers')
-  async create(@Body() dto: CreateGlacierDto, @Req() req: { user: JwtPayload }) {
+  async create(
+    @Body() dto: CreateGlacierDto,
+    @Req() req: { user: JwtPayload },
+  ) {
     return this.glaciersService.create(dto, req.user.sub);
   }
 
@@ -79,7 +82,9 @@ export class GlaciersController {
 
   @Roles('cryohealth_admin')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Admin: Delete glacier (blocked if observations exist)' })
+  @ApiOperation({
+    summary: 'Admin: Delete glacier (blocked if observations exist)',
+  })
   @Delete('admin/glaciers/:id')
   async remove(
     @Param('id', new ParseUUIDPipe()) id: string,

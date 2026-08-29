@@ -44,7 +44,7 @@ export class DistrictsService {
       entityId,
       reason,
       meta,
-    } as any);
+    } as Partial<AuditEntry>);
   }
 
   async findAll() {
@@ -77,14 +77,23 @@ export class DistrictsService {
         saved = await repo.save(district);
       } catch (err) {
         if (this.isUniqueViolation(err)) {
-          throw new ConflictException('A district with this name already exists.');
+          throw new ConflictException(
+            'A district with this name already exists.',
+          );
         }
         throw err;
       }
 
-      await this.audit(manager, actorId, 'district.create', saved.id, undefined, {
-        created: { name: saved.name, province: saved.province },
-      });
+      await this.audit(
+        manager,
+        actorId,
+        'district.create',
+        saved.id,
+        undefined,
+        {
+          created: { name: saved.name, province: saved.province },
+        },
+      );
 
       return saved;
     });
@@ -112,18 +121,29 @@ export class DistrictsService {
         saved = await repo.save(district);
       } catch (err) {
         if (this.isUniqueViolation(err)) {
-          throw new ConflictException('A district with this name already exists.');
+          throw new ConflictException(
+            'A district with this name already exists.',
+          );
         }
         throw err;
       }
 
       const changed: Record<string, any> = {};
-      if (beforeName !== saved.name) changed.name = { from: beforeName, to: saved.name };
-      if (beforeProvince !== saved.province) changed.province = { from: beforeProvince, to: saved.province };
+      if (beforeName !== saved.name)
+        changed.name = { from: beforeName, to: saved.name };
+      if (beforeProvince !== saved.province)
+        changed.province = { from: beforeProvince, to: saved.province };
 
-      await this.audit(manager, actorId, 'district.update', saved.id, undefined, {
-        changed,
-      });
+      await this.audit(
+        manager,
+        actorId,
+        'district.update',
+        saved.id,
+        undefined,
+        {
+          changed,
+        },
+      );
 
       return saved;
     });

@@ -22,7 +22,7 @@ export class Facility {
   })
   geom?: { type: 'Point'; coordinates: [number, number] };
   @Column({ nullable: true }) contact?: string;
-  
+
   @Column({ default: 'low' })
   vulnerability: string;
 

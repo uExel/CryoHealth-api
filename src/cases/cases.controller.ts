@@ -49,7 +49,9 @@ export class CasesController {
   @Roles('cryohealth_admin')
   @Get('admin/cases')
   @ApiOperation({ summary: 'Admin: List non-deleted cases with total count' })
-  listAdmin(@Query('limit', new ParseIntPipe({ optional: true })) limit?: number) {
+  listAdmin(
+    @Query('limit', new ParseIntPipe({ optional: true })) limit?: number,
+  ) {
     return this.cases.listAdmin(limit || 200);
   }
 

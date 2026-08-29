@@ -11,8 +11,12 @@ export class SyncController {
   @Roles('cryohealth_admin')
   @ApiBearerAuth()
   @Get('admin/sync')
-  @ApiOperation({ summary: 'Admin sync activity report (sync_log and chw_cases)' })
-  getSyncActivity(@Query('limit', new ParseIntPipe({ optional: true })) limit?: number) {
+  @ApiOperation({
+    summary: 'Admin sync activity report (sync_log and chw_cases)',
+  })
+  getSyncActivity(
+    @Query('limit', new ParseIntPipe({ optional: true })) limit?: number,
+  ) {
     return this.syncService.getSyncActivity(limit || 200);
   }
 

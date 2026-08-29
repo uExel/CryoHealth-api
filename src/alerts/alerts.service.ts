@@ -24,6 +24,12 @@ import {
 const MAX_PAGE = 100;
 const POSTGRES_UNIQUE_VIOLATION = '23505';
 
+export interface AlertAckRow {
+  alert_id: string;
+  chw_id: string;
+  acknowledged_at: Date;
+}
+
 @Injectable()
 export class AlertsService {
   constructor(
@@ -34,9 +40,6 @@ export class AlertsService {
     private readonly channels: NotificationChannel[],
   ) {}
 
-  /** CHWs and facility_admins at facilities mapped downstream of this lake. Mapping is
-   *  admin-curated (Facility.lakeId) — the PRD explicitly scopes computed flow-path
-   *  routing out of the prototype. */
   async recipientsFor(lakeId: string): Promise<AlertRecipient[]> {
     const recipients = await this.users.find({
       where: {
@@ -60,10 +63,6 @@ export class AlertsService {
     await Promise.all(this.channels.map((c) => c.send(alert, recipients)));
   }
 
-  /** The geo service's contract: report a new score, and if it implies a tier different
-   *  from the lake's current one, exactly one active alert is created — the database's
-   *  partial unique index (lakeId, tier) WHERE status='active' is what makes "exactly
-   *  one" true even under concurrent/duplicate reports, not an application-level check. */
   async recordHazardScore(
     dto: RecordHazardScoreDto,
   ): Promise<{ alert: Alert | null; deduped: boolean }> {
@@ -72,8 +71,6 @@ export class AlertsService {
       const lake = await lakeRepo.findOne({ where: { id: dto.lakeId } });
       if (!lake) throw new NotFoundException('No such lake');
 
-      // deep-partial type can't express a generic Record<string, unknown> jsonb column;
-      // the driver serializes it correctly regardless.
       await manager.getRepository(HazardScore).insert({
         lakeId: dto.lakeId,
         runId: dto.runId,
@@ -81,7 +78,7 @@ export class AlertsService {
         tier: dto.tier,
         components: dto.components,
         computedAt: dto.computedAt ? new Date(dto.computedAt) : new Date(),
-      } as any);
+      } as Partial<HazardScore>);
 
       if (dto.tier === lake.currentTier) {
         return { alert: null, deduped: false };
@@ -96,7 +93,7 @@ export class AlertsService {
           body: `Hazard score run ${dto.runId} moved ${lake.name} from ${lake.currentTier} to ${dto.tier}.`,
           downstreamSummary: `Monitored lake in ${lake.valley}, ${lake.district}.`,
         },
-        /* onConflict */ 'ignore',
+        'ignore',
       );
 
       if (!deduped) {
@@ -107,9 +104,6 @@ export class AlertsService {
     });
   }
 
-  /** A human issuing a new alert outright — distinct from override, which changes an
-   *  existing one. Collides with the dedupe index -> 409 pointing at PATCH instead of
-   *  silently ignoring, because a human issuing an alert expects a real response. */
   async issueManual(dto: IssueAlertDto, actorId: string): Promise<Alert> {
     return this.dataSource.transaction(async (manager) => {
       const { alert, deduped, conflictWith } = await this.insertAlert(
@@ -146,8 +140,6 @@ export class AlertsService {
     });
   }
 
-  /** Upgrade, downgrade, or clear an existing alert. Reason is mandatory and audited —
-   *  a human overriding the model must say why (ARCHITECTURE.md, non-negotiable). */
   async override(
     id: string,
     dto: OverrideAlertDto,
@@ -211,8 +203,8 @@ export class AlertsService {
     return alert;
   }
 
-  async listAlertAcks() {
-    return this.dataSource.query(
+  async listAlertAcks(): Promise<AlertAckRow[]> {
+    return await this.dataSource.query(
       `SELECT alert_id, chw_id, acknowledged_at FROM alert_acknowledgements`,
     );
   }
@@ -304,6 +296,6 @@ export class AlertsService {
       entityId,
       reason,
       meta,
-    } as any);
+    } as Partial<AuditEntry>);
   }
 }

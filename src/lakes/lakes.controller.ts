@@ -11,11 +11,13 @@ import {
   Body,
   Req,
   UseGuards,
+  BadRequestException,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Public } from '../common/decorators/public.decorator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { LakesService } from './lakes.service';
+import type { Request } from 'express';
 
 /** Open Data API: read-only, no auth — safety information is never gated (PRD R1). */
 @ApiTags('lakes')
@@ -106,7 +108,10 @@ export class LakesController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Admin: Create lake' })
-  createLake(@Body() dto: any, @Req() req: any) {
+  createLake(
+    @Body() dto: Record<string, unknown>,
+    @Req() req: Request & { user: { sub: string } },
+  ) {
     return this.lakes.createLake(dto, req.user.sub);
   }
 
@@ -116,8 +121,8 @@ export class LakesController {
   @ApiOperation({ summary: 'Admin: Update lake' })
   updateLake(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: any,
-    @Req() req: any,
+    @Body() dto: Record<string, unknown>,
+    @Req() req: Request & { user: { sub: string } },
   ) {
     return this.lakes.updateLake(id, dto, req.user.sub);
   }
@@ -129,12 +134,10 @@ export class LakesController {
   deleteLake(
     @Param('id', ParseUUIDPipe) id: string,
     @Query('reason') reason: string,
-    @Req() req: any,
+    @Req() req: Request & { user: { sub: string } },
   ) {
     if (!reason || reason.trim() === '') {
-      throw new (require('@nestjs/common').BadRequestException)(
-        'reason is required',
-      );
+      throw new BadRequestException('reason is required');
     }
     return this.lakes.deleteLake(id, reason, req.user.sub);
   }

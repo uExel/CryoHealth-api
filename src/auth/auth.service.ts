@@ -25,7 +25,10 @@ export class AuthService {
       !(await compare(password, user.passwordHash))
     ) {
       // Return a JSON error matching the frontend's format
-      throw new HttpException({ error: 'Wrong ID or PIN' }, HttpStatus.UNAUTHORIZED);
+      throw new HttpException(
+        { error: 'Wrong ID or PIN' },
+        HttpStatus.UNAUTHORIZED,
+      );
     }
     const payload: JwtPayload = {
       sub: user.id,

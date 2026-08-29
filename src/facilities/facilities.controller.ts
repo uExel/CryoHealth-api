@@ -37,8 +37,12 @@ export class FacilitiesController {
   @ApiBearerAuth()
   @Roles('cryohealth_admin')
   @Get('admin/facilities')
-  @ApiOperation({ summary: 'List facilities with full details for admin (Admin only)' })
-  listAdmin(@Query('limit', new ParseIntPipe({ optional: true })) limit?: number) {
+  @ApiOperation({
+    summary: 'List facilities with full details for admin (Admin only)',
+  })
+  listAdmin(
+    @Query('limit', new ParseIntPipe({ optional: true })) limit?: number,
+  ) {
     return this.facilitiesService.findAllAdmin(limit ?? 200);
   }
 

@@ -36,7 +36,7 @@ export class ChwProfilesService {
       entityId,
       reason,
       meta,
-    } as any);
+    } as Partial<AuditEntry>);
   }
 
   async findAllPublic() {
@@ -122,8 +122,13 @@ export class ChwProfilesService {
 
   async create(dto: CreateChwProfileDto, actorId: string) {
     if (dto.district_id) {
-      const d = await this.districts.findOne({ where: { id: dto.district_id } });
-      if (!d) throw new BadRequestException('district_id does not reference an existing district');
+      const d = await this.districts.findOne({
+        where: { id: dto.district_id },
+      });
+      if (!d)
+        throw new BadRequestException(
+          'district_id does not reference an existing district',
+        );
     }
 
     return this.dataSource.transaction(async (manager) => {
@@ -137,9 +142,16 @@ export class ChwProfilesService {
 
       const saved = await repo.save(profile);
 
-      await this.audit(manager, actorId, 'chw_profile.create', saved.id, undefined, {
-        created: { full_name: saved.fullName },
-      });
+      await this.audit(
+        manager,
+        actorId,
+        'chw_profile.create',
+        saved.id,
+        undefined,
+        {
+          created: { full_name: saved.fullName },
+        },
+      );
 
       return {
         id: saved.id,
@@ -155,8 +167,13 @@ export class ChwProfilesService {
 
   async update(id: string, dto: UpdateChwProfileDto, actorId: string) {
     if (dto.district_id) {
-      const d = await this.districts.findOne({ where: { id: dto.district_id } });
-      if (!d) throw new BadRequestException('district_id does not reference an existing district');
+      const d = await this.districts.findOne({
+        where: { id: dto.district_id },
+      });
+      if (!d)
+        throw new BadRequestException(
+          'district_id does not reference an existing district',
+        );
     }
 
     return this.dataSource.transaction(async (manager) => {
@@ -167,21 +184,33 @@ export class ChwProfilesService {
       const before = { ...profile };
 
       if (dto.full_name !== undefined) profile.fullName = dto.full_name;
-      if (dto.district_id !== undefined) profile.districtId = dto.district_id || undefined;
+      if (dto.district_id !== undefined)
+        profile.districtId = dto.district_id || undefined;
       if (dto.phone !== undefined) profile.phone = dto.phone || undefined;
       if (dto.language !== undefined) profile.language = dto.language;
 
       const saved = await repo.save(profile);
 
       const changed: Record<string, any> = {};
-      if (before.fullName !== saved.fullName) changed.full_name = { from: before.fullName, to: saved.fullName };
-      if (before.districtId !== saved.districtId) changed.district_id = { from: before.districtId, to: saved.districtId };
-      if (before.phone !== saved.phone) changed.phone = { from: before.phone, to: saved.phone };
-      if (before.language !== saved.language) changed.language = { from: before.language, to: saved.language };
+      if (before.fullName !== saved.fullName)
+        changed.full_name = { from: before.fullName, to: saved.fullName };
+      if (before.districtId !== saved.districtId)
+        changed.district_id = { from: before.districtId, to: saved.districtId };
+      if (before.phone !== saved.phone)
+        changed.phone = { from: before.phone, to: saved.phone };
+      if (before.language !== saved.language)
+        changed.language = { from: before.language, to: saved.language };
 
-      await this.audit(manager, actorId, 'chw_profile.update', saved.id, undefined, {
-        meta: Object.keys(changed).length ? { changed } : null,
-      });
+      await this.audit(
+        manager,
+        actorId,
+        'chw_profile.update',
+        saved.id,
+        undefined,
+        {
+          meta: Object.keys(changed).length ? { changed } : null,
+        },
+      );
 
       return {
         id: saved.id,

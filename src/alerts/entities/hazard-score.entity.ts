@@ -27,7 +27,7 @@ export class HazardScore {
   })
   tier: Tier;
   /** Per-signal inputs, kept whole so every score is reproducible from stored inputs. */
-  @Column({ type: 'jsonb' }) components: Record<string, unknown>;
+  @Column({ type: 'jsonb' }) components: any;
   @Column({ type: 'timestamptz' }) computedAt: Date;
   @CreateDateColumn({ type: 'timestamptz' }) createdAt: Date;
 }

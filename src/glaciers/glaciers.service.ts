@@ -40,7 +40,7 @@ export class GlaciersService {
       entityId,
       reason,
       meta,
-    } as any);
+    } as Partial<AuditEntry>);
   }
 
   async findAll() {
@@ -126,7 +126,9 @@ export class GlaciersService {
         where: { id: dto.districtId },
       });
       if (!districtExists) {
-        throw new BadRequestException('district_id does not reference an existing district');
+        throw new BadRequestException(
+          'district_id does not reference an existing district',
+        );
       }
     }
 
@@ -152,9 +154,20 @@ export class GlaciersService {
 
       const saved = await repo.save(glacier);
 
-      await this.audit(manager, actorId, 'glacier.create', saved.id, undefined, {
-        created: { name: saved.name, status: saved.status, source: saved.source },
-      });
+      await this.audit(
+        manager,
+        actorId,
+        'glacier.create',
+        saved.id,
+        undefined,
+        {
+          created: {
+            name: saved.name,
+            status: saved.status,
+            source: saved.source,
+          },
+        },
+      );
 
       return { id: saved.id };
     });
@@ -166,7 +179,9 @@ export class GlaciersService {
         where: { id: dto.districtId },
       });
       if (!districtExists) {
-        throw new BadRequestException('district_id does not reference an existing district');
+        throw new BadRequestException(
+          'district_id does not reference an existing district',
+        );
       }
     }
 
@@ -182,17 +197,25 @@ export class GlaciersService {
       if (dto.name !== undefined) glacier.name = dto.name;
       if (dto.rgiId !== undefined) glacier.rgiId = dto.rgiId || undefined;
       if (dto.glimsId !== undefined) glacier.glimsId = dto.glimsId || undefined;
-      if (dto.districtId !== undefined) glacier.districtId = dto.districtId || undefined;
+      if (dto.districtId !== undefined)
+        glacier.districtId = dto.districtId || undefined;
       if (dto.lat !== undefined) glacier.lat = dto.lat;
       if (dto.lng !== undefined) glacier.lng = dto.lng;
       if (dto.areaKm2 !== undefined) glacier.areaKm2 = dto.areaKm2 || undefined;
-      if (dto.lengthKm !== undefined) glacier.lengthKm = dto.lengthKm || undefined;
-      if (dto.elevationMinM !== undefined) glacier.elevationMinM = dto.elevationMinM || undefined;
-      if (dto.elevationMaxM !== undefined) glacier.elevationMaxM = dto.elevationMaxM || undefined;
+      if (dto.lengthKm !== undefined)
+        glacier.lengthKm = dto.lengthKm || undefined;
+      if (dto.elevationMinM !== undefined)
+        glacier.elevationMinM = dto.elevationMinM || undefined;
+      if (dto.elevationMaxM !== undefined)
+        glacier.elevationMaxM = dto.elevationMaxM || undefined;
       if (dto.status !== undefined) glacier.status = dto.status;
-      if (dto.terminusType !== undefined) glacier.terminusType = dto.terminusType || undefined;
+      if (dto.terminusType !== undefined)
+        glacier.terminusType = dto.terminusType || undefined;
       if (dto.source !== undefined) glacier.source = dto.source;
-      if (dto.lastObserved !== undefined) glacier.lastObserved = dto.lastObserved ? new Date(dto.lastObserved) : undefined;
+      if (dto.lastObserved !== undefined)
+        glacier.lastObserved = dto.lastObserved
+          ? new Date(dto.lastObserved)
+          : undefined;
       if (dto.notes !== undefined) glacier.notes = dto.notes || undefined;
 
       const saved = await repo.save(glacier);
@@ -221,9 +244,16 @@ export class GlaciersService {
         }
       }
 
-      await this.audit(manager, actorId, 'glacier.update', saved.id, undefined, {
-        changed: Object.keys(changed).length ? changed : null,
-      });
+      await this.audit(
+        manager,
+        actorId,
+        'glacier.update',
+        saved.id,
+        undefined,
+        {
+          changed: Object.keys(changed).length ? changed : null,
+        },
+      );
 
       return {
         id: saved.id,
@@ -254,12 +284,12 @@ export class GlaciersService {
         throw new NotFoundException('Glacier not found');
       }
 
-      // Check dependent glacier observations
       const obsRepo = manager.getRepository(GlacierObservation);
       const count = await obsRepo.count({ where: { glacierId: id } });
       if (count > 0) {
         throw new ConflictException({
-          message: 'Cannot delete glacier because it has dependent observations',
+          message:
+            'Cannot delete glacier because it has dependent observations',
           dependents: { glacier_observations: count },
         });
       }

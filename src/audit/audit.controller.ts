@@ -13,13 +13,18 @@ export class AuditController {
   @Roles('cryohealth_admin')
   @ApiBearerAuth()
   @Get()
-  @ApiOperation({ summary: 'Admin audit log with filters, pagination, and CSV export' })
+  @ApiOperation({
+    summary: 'Admin audit log with filters, pagination, and CSV export',
+  })
   async getAuditLog(@Query() query: AuditQueryDto, @Res() res: Response) {
     const result = await this.auditService.getAuditLog(query);
 
     if (result.isCsv) {
       res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-      res.setHeader('Content-Disposition', `attachment; filename="${result.filename}"`);
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="${result.filename}"`,
+      );
       return res.status(200).send(result.csvString);
     }
 
