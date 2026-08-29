@@ -1,4 +1,4 @@
-import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { compare } from 'bcryptjs';
@@ -25,10 +25,7 @@ export class AuthService {
       !(await compare(password, user.passwordHash))
     ) {
       // Return a JSON error matching the frontend's format
-      throw new HttpException(
-        { error: 'Wrong ID or PIN' },
-        HttpStatus.UNAUTHORIZED,
-      );
+      throw new UnauthorizedException('Wrong ID or PIN');
     }
     const payload: JwtPayload = {
       sub: user.id,
