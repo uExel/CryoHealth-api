@@ -43,6 +43,20 @@ defaults.
 - Server: GHCR login configured, migrations run, lakes seeded, `api` container stable and
   serving traffic through the tunnel
 
+## CORS origins hardcoded (2026-08-30)
+
+`src/main.ts:15-19` now hardcodes the allowed CORS origins to:
+- `http://localhost:8080`
+- `https://cryohealth.io`
+
+This is intentional: server config is not accessible from this session, so the frontend URLs
+are hardcoded rather than read from environment variables. If `CORS_ORIGINS` is set and
+non-empty in the deployment environment, it still overrides these defaults.
+
+The Expo native app (`cryohealth-app`) is not affected by CORS — native HTTP clients bypass
+browser same-origin policy. The web frontend (`cryohealth`) runs on `localhost:8080` in dev
+and `https://cryohealth.io` in production, both of which are allowed.
+
 ## Not done / deferred
 
 - No automated test exercises the actual built container (only source-level jest via
