@@ -12,8 +12,12 @@ async function bootstrap() {
   const config = app.get(ConfigService);
   // Native app fetch calls aren't CORS-restricted, but Expo web preview and future
   // browser clients are — allow only the configured origins, not '*'.
+  const corsOrigins = config.get<string[] | undefined>('corsOrigins');
   app.enableCors({
-    origin: config.get<string[]>('corsOrigins', []),
+    origin:
+      corsOrigins && corsOrigins.length > 0
+        ? ['http://localhost:8080', 'https://cryohealth.io']
+        : ['http://localhost:8080', 'https://cryohealth.io'],
     credentials: true,
   });
 
