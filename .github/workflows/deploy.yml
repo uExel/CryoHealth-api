@@ -46,4 +46,11 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
             cd /opt/cryohealth
-            docker compose exec -T api npx ts-node scripts/seed-users.ts
+            echo "Current directory:"
+            pwd
+
+            echo "Files:"
+            ls -la
+
+            echo "Compose files:"
+            find /opt/cryohealth -maxdepth 2 -type f \( -name "compose.yml" -o -name "compose.yaml" -o -name "docker-compose.yml" -o -name "docker-compose.yaml" \) -print
