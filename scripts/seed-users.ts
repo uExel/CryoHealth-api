@@ -72,7 +72,7 @@ async function main() {
     console.log('Dev logins (lhwId / PIN):');
 
     for (const u of DEV_USERS) {
-      console.log(`  ${u.lhwId} / ${u.pin} (${u.role})`);
+      console.log(`  ${u.lhwId} /  (${u.role})`);
     }
   } finally {
     await dataSource.destroy();

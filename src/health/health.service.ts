@@ -34,7 +34,8 @@ export class HealthService {
   private getGeoUrl(): string {
     const url =
       this.config.get<string>('CRYOHEALTH_GEO_URL') ||
-      process.env.CRYOHEALTH_GEO_URL;
+      process.env.CRYOHEALTH_GEO_URL ||
+      'http://geo:8000';
     if (!url)
       throw new Error('Missing CRYOHEALTH_GEO_URL environment variable');
     return url.replace(/\/+$/, '');
