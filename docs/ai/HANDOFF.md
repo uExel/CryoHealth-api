@@ -4,6 +4,7 @@ Session: hetzner-tunnel-deploy Model: claude-sonnet-5 Branch: main Goal: none Ta
 
 ## State
 
+Added Default url of Geo service to access it
 Fully deployed and live. `api` runs on the Hetzner box (`ubuntu-4gb-hel1-1`,
 204.168.190.206) behind the `cryohealth-hetzner` Cloudflare Tunnel, publicly reachable at
 `https://api.cryohealth.io` — confirmed via `GET /health` → `{"status":"ok","database":"up"}`.
@@ -46,6 +47,7 @@ defaults.
 ## CORS origins hardcoded (2026-08-30)
 
 `src/main.ts:15-19` now hardcodes the allowed CORS origins to:
+
 - `http://localhost:8080`
 - `https://cryohealth.io`
 
@@ -112,6 +114,7 @@ Resolved 9 TypeScript compilation errors and 3 failing jest tests.
 **Compilation fix:** TypeORM 0.3's strict `_QueryDeepPartialEntity` rejects `Record<string, unknown>` for JSONB columns in `insert()` calls. Changed JSONB column types from `Record<string, unknown>` to `any` in 4 entity files to bypass the overly strict deep-partial mapping. Runtime behavior is unchanged.
 
 **Test fixes:**
+
 - `src/auth/auth.service.ts`: `login()` was throwing `HttpException` but tests expected `UnauthorizedException`; changed to `UnauthorizedException('Wrong ID or PIN')` so `instanceof` and `toThrow` assertions both pass.
 - `src/lakes/lakes.service.spec.ts`: `LakesService` now requires `DataSource` for `query`/`transaction`; added a mock `DataSource` provider to the test module.
 - `src/cases/cases.service.spec.ts`: Same missing `DataSource` provider issue; added mock.
