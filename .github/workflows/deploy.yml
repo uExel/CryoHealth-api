@@ -45,4 +45,4 @@ jobs:
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
-            docker compose -f /opt/cryohealth/docker-compose.prod.yml exec -T api npx ts-node scripts/seed-users.ts
+            docker compose -f /opt/cryohealth/docker-compose.prod.yml exec -T api npx ts-node scripts/seed-glaciers.ts
