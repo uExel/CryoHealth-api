@@ -1,6 +1,7 @@
 import { Type } from 'class-transformer';
 import {
   IsBoolean,
+  IsObject,
   IsOptional,
   IsString,
   ValidateNested,
@@ -30,6 +31,7 @@ export class UpdateProtocolDto {
   is_disaster?: boolean;
 
   @IsOptional()
+  @IsObject()
   @ValidateNested()
   @Type(() => ProtocolStepsDto)
   steps?: ProtocolStepsDto;

@@ -2,6 +2,7 @@ import { Type } from 'class-transformer';
 import {
   IsBoolean,
   IsNotEmpty,
+  IsObject,
   IsOptional,
   IsString,
   ValidateNested,
@@ -35,7 +36,10 @@ export class CreateProtocolDto {
   @IsBoolean()
   is_disaster?: boolean;
 
+  // @IsObject() rejects a bare array before @ValidateNested gets a chance to accept it
+  // (arrays are `typeof === 'object'` in JS but class-validator's IsObject excludes them).
   @IsOptional()
+  @IsObject()
   @ValidateNested()
   @Type(() => ProtocolStepsDto)
   steps?: ProtocolStepsDto;

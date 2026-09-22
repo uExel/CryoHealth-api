@@ -1,6 +1,9 @@
 import { Type } from 'class-transformer';
 import {
+  ArrayMinSize,
+  IsArray,
   IsBoolean,
+  IsDefined,
   IsIn,
   IsNotEmpty,
   IsOptional,
@@ -33,10 +36,18 @@ export class ProtocolStepDto {
 }
 
 export class ProtocolStepsDto {
+  // class-validator skips undefined properties by default -- @IsDefined() is what
+  // actually makes `chw`/`pub` mandatory once `steps` is provided at all.
+  @IsDefined({ message: 'steps.chw is required' })
+  @IsArray()
+  @ArrayMinSize(1, { message: 'steps.chw must have at least one step' })
   @ValidateNested({ each: true })
   @Type(() => ProtocolStepDto)
   chw: ProtocolStepDto[];
 
+  @IsDefined({ message: 'steps.pub is required' })
+  @IsArray()
+  @ArrayMinSize(1, { message: 'steps.pub must have at least one step' })
   @ValidateNested({ each: true })
   @Type(() => ProtocolStepDto)
   pub: ProtocolStepDto[];
