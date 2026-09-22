@@ -41,7 +41,8 @@ describe('CreateProtocolDto.steps validation', () => {
   });
 
   it('rejects a step with a missing tier', async () => {
-    const { tier: _tier, ...stepWithoutTier } = VALID_STEP;
+    const stepWithoutTier: Record<string, unknown> = { ...VALID_STEP };
+    delete stepWithoutTier.tier;
     const errors = await errorsFor({
       chw: [stepWithoutTier],
       pub: [VALID_STEP],
