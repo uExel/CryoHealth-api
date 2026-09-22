@@ -1,4 +1,12 @@
-import { IsBoolean, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
+import {
+  IsBoolean,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  ValidateNested,
+} from 'class-validator';
+import { ProtocolStepsDto } from './protocol-steps.dto';
 
 export class CreateProtocolDto {
   @IsString()
@@ -26,4 +34,9 @@ export class CreateProtocolDto {
   @IsOptional()
   @IsBoolean()
   is_disaster?: boolean;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => ProtocolStepsDto)
+  steps?: ProtocolStepsDto;
 }

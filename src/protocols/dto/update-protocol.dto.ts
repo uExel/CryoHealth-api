@@ -1,4 +1,11 @@
-import { IsBoolean, IsOptional, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
+import {
+  IsBoolean,
+  IsOptional,
+  IsString,
+  ValidateNested,
+} from 'class-validator';
+import { ProtocolStepsDto } from './protocol-steps.dto';
 
 /** slug is omitted – create-only (never editable after creation). */
 export class UpdateProtocolDto {
@@ -21,4 +28,9 @@ export class UpdateProtocolDto {
   @IsOptional()
   @IsBoolean()
   is_disaster?: boolean;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => ProtocolStepsDto)
+  steps?: ProtocolStepsDto;
 }

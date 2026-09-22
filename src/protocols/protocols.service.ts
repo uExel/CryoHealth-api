@@ -59,6 +59,7 @@ export class ProtocolsService {
           body: dto.body,
           source: dto.source,
           isDisaster: dto.is_disaster ?? false,
+          steps: dto.steps,
         });
         const saved = await repo.save(protocol);
         await this.audit(
@@ -104,6 +105,7 @@ export class ProtocolsService {
       if (dto.body !== undefined) protocol.body = dto.body;
       if (dto.source !== undefined) protocol.source = dto.source;
       if (dto.is_disaster !== undefined) protocol.isDisaster = dto.is_disaster;
+      if (dto.steps !== undefined) protocol.steps = dto.steps;
 
       const saved = await repo.save(protocol);
 
@@ -114,6 +116,7 @@ export class ProtocolsService {
         'body',
         'source',
         'isDisaster',
+        'steps',
       ] as const) {
         if (before[field] !== saved[field])
           changed[field] = { from: before[field], to: saved[field] };

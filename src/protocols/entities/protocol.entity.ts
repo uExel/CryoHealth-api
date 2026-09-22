@@ -5,6 +5,20 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { Tier } from '../../common/types/tier.type';
+
+export type ProtocolStep = {
+  label: string;
+  head: string;
+  why: string;
+  tier: Tier;
+  numbered?: boolean;
+};
+
+export type ProtocolSteps = {
+  chw: ProtocolStep[];
+  pub: ProtocolStep[];
+};
 
 @Entity('protocols')
 export class Protocol {
@@ -29,6 +43,12 @@ export class Protocol {
 
   @Column({ name: 'is_disaster', default: false })
   isDisaster: boolean;
+
+  /** Structured per-tier steps for cryohealth-app's Guidance screen (CHW + public
+   *  audiences, separately authored — see cryohealth-app#5). Nullable: existing rows
+   *  keep working, rendered from `body` by the app when this is absent. */
+  @Column({ type: 'jsonb', nullable: true })
+  steps?: ProtocolSteps;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
