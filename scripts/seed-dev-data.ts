@@ -20,9 +20,12 @@
  *    exactly the failure mode the decision doc warns about. Needs real Sentinel-1/2
  *    pipeline runs, not synthetic seed rows.
  *  - protocols: transcribed verbatim from CryoHealth-app's `src/lib/mock.ts`
- *    (`GUIDANCE.chw`, `ALERT_DETAIL`/`CRITICAL`) — team-authored design-reference
- *    content, not generated here. Per workspace CLAUDE.md, dosing/diagnosis text must
- *    never come from a language model; this script copies, it does not compose.
+ *    (`GUIDANCE.chw`/`.pub` -> `steps`, `ALERT_DETAIL`/`CRITICAL` -> `body`) —
+ *    team-authored design-reference content, not generated here. Per workspace
+ *    CLAUDE.md, dosing/diagnosis text must never come from a language model; this
+ *    script copies, it does not compose. `glof-evacuation-checklist` has no `steps`:
+ *    its source (`ALERT_DETAIL.checklist`) is flat strings with no per-item tier/why
+ *    split to transcribe, so `body` (already clean) stays its only content.
  *  - alerts: also transcribed from `mock.ts`'s `ALERTS`/`ALERT_DETAIL`. `lakes.currentTier`
  *    is deliberately left untouched — that column is tier *policy* output owned by
  *    CryoHealth-api's alert service, not something a seed script should set. The
@@ -112,6 +115,58 @@ const PROTOCOLS = [
     source:
       'WHO IMCI chart booklet · LHW curriculum (transcribed from CryoHealth-app src/lib/mock.ts GUIDANCE.chw)',
     isDisaster: false,
+    // Verbatim from CryoHealth-app/src/lib/mock.ts GUIDANCE.chw/.pub (field `n` -> `label`
+    // per the API's ProtocolStep shape, cryohealth-app#5). No text composed here.
+    steps: JSON.stringify({
+      chw: [
+        {
+          label: 'STEP 1 · DANGER SIGNS',
+          head: 'No general danger signs',
+          why: 'Able to drink · no vomiting · no convulsions · not lethargic',
+          tier: 'normal',
+        },
+        {
+          label: 'STEP 2 · CLASSIFICATION',
+          head: 'Fast breathing — pneumonia',
+          why: '44 breaths/min at age 2 (cut-off 40)',
+          tier: 'high',
+        },
+        {
+          label: 'STEP 3 · DO THIS',
+          head: 'Amoxicillin 250 mg — 1 tablet twice daily, 5 days',
+          why: 'Dose row: 2 years / 10–14 kg. Continue feeding and fluids.',
+          tier: 'normal',
+          numbered: true,
+        },
+        {
+          label: 'STEP 4 · REFER IF',
+          head: 'Chest indrawing, unable to drink, or worse in 2 days',
+          why: 'Refer to Hassanabad BHU — mark the case for follow-up.',
+          tier: 'critical',
+        },
+      ],
+      pub: [
+        {
+          label: 'WHAT THIS MAY BE',
+          head: 'Possible chest infection',
+          why: 'Fast breathing in a young child needs a health worker today.',
+          tier: 'watch',
+        },
+        {
+          label: 'DO THIS NOW',
+          head: 'Go to Hassanabad BHU today',
+          why: 'Keep the child warm. Keep giving fluids and feeding.',
+          tier: 'normal',
+          numbered: true,
+        },
+        {
+          label: 'GO IMMEDIATELY IF',
+          head: 'Cannot drink, chest pulls in, or the child is limp',
+          why: 'These are danger signs. Do not wait.',
+          tier: 'critical',
+        },
+      ],
+    }),
   },
   {
     slug: 'glof-evacuation-checklist',
@@ -125,6 +180,10 @@ const PROTOCOLS = [
     source:
       'Transcribed from CryoHealth-app src/lib/mock.ts ALERT_DETAIL.checklist',
     isDisaster: true,
+    // No steps: mock.ts's checklist is flat strings with no per-item tier/why split to
+    // transcribe — inventing one would compose structure that isn't in the source text.
+    // The app's body-line fallback (cryohealth-app#5 Step 7) renders this correctly as-is.
+    steps: null,
   },
 ] as const;
 
@@ -172,12 +231,13 @@ async function main() {
     let protocolsUpserted = 0;
     for (const p of PROTOCOLS) {
       await dataSource.query(
-        `INSERT INTO protocols (slug, title, category, body, source, is_disaster)
-         VALUES ($1, $2, $3, $4, $5, $6)
+        `INSERT INTO protocols (slug, title, category, body, source, is_disaster, steps)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
          ON CONFLICT (slug) DO UPDATE SET
            title = EXCLUDED.title, category = EXCLUDED.category, body = EXCLUDED.body,
-           source = EXCLUDED.source, is_disaster = EXCLUDED.is_disaster`,
-        [p.slug, p.title, p.category, p.body, p.source, p.isDisaster],
+           source = EXCLUDED.source, is_disaster = EXCLUDED.is_disaster,
+           steps = EXCLUDED.steps`,
+        [p.slug, p.title, p.category, p.body, p.source, p.isDisaster, p.steps],
       );
       protocolsUpserted++;
     }
