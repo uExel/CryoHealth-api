@@ -1,96 +1,109 @@
 # HANDOFF — CryoHealth-api — 2026-09-22 PKT
-Session: task19-build  Model: claude-sonnet-5  Branch: main  Goal: none  Task: #19 (companion to cryohealth-app#5)
+
+Session: task19-escalated Model: claude-sonnet-5 Branch: main Goal: none Task: #19 (companion to cryohealth-app#5) — **agent:needs-human**
 
 ## State
-Issue #19 is **built, fix-looped twice, second verify passed both rubrics — third and
-final verify (loop budget is 3 max) running now** on the two newest commits, which fix a
-real deploy-coupling gap the second verify surfaced (see below). **Do not push to
-`origin/main` until that verdict lands** — pushing here triggers CI then an automatic
-production deploy (migration run against live Postgres, container restart on
-`api.cryohealth.io`), and a human confirms that push separately even after a pass, per
-this session's explicit gate. Local `main` is 6 commits ahead of `origin/main`
-(`b197c55`, `1094ea2`, `2d62417`, `e79866c`, `07b3af4` docs, `263e516`), none pushed.
+
+Issue #19 is **escalated, not pushed, fix-loop budget (3) exhausted.** Full detail:
+[issue comment](https://github.com/uExel/CryoHealth-api/issues/19#issuecomment-5780982213).
+
+The short version: this whole feature was built and fix-looped (twice) against two
+dev-seeded protocols (`fast-breathing-pneumonia-2y`, `glof-evacuation-checklist`). The
+third and final verify pass checked live production (`GET /protocols` on
+`api.cryohealth.io` is public, no credentials needed) and found **production has 11
+real clinical protocols — cholera, severe malaria, diarrhoea treatment — and neither
+dev protocol exists there.** Confirmed independently by this session, not just taken on
+the verifier's word (`curl https://api.cryohealth.io/protocols | jq`). All 11 real
+protocols have `steps: null`. The backfill migration `263e516` is an
+`UPDATE ... WHERE slug = ...` against slugs that don't exist in production — a complete
+no-op there.
+
+**This cannot be resolved by further engineering.** The real gap is that 11 real
+protocols need real `steps` content, and that content is clinical dosing/diagnosis
+text — composing it here would violate this workspace's hardest rule (PRD §9 R5: never
+an LLM in the dosing/diagnosis path). Local `main` is 6 commits ahead of `origin/main`,
+**not pushed, holding for a human product/content decision.**
 
 ## Done this session
-- `b197c55`: nullable `steps` jsonb column on `Protocol` + initial DTO validation.
-  Migration hand-written after discarding an unsafe `migration:generate` auto-diff that
-  picked up ~15 unrelated columns/constraints of pre-existing schema drift.
-- `1094ea2`: seeded real `steps` content (4 CHW / 3 public steps) for the pneumonia
-  protocol, transcribed verbatim from cryohealth-app's `mock.ts`.
-- **First `/uexel:verify` pass found 3 findings** (posted on cryohealth-app#5): (1) public
-  mode could see CHW dosing content via a body-fallback that ignored audience, (2)
-  malformed `steps` payloads were accepted by the API and crashed the app, (3) no test
-  covered the new validation. Fix loop, iteration 1:
-  - `2d62417`: `@IsDefined`/`@IsArray`/`@ArrayMinSize(1)` on `steps.chw`/`.pub`,
-    `@IsObject()` on `steps` itself (closes finding 2 at the API boundary). New
-    `protocol-steps.dto.spec.ts`, 11 cases covering the verifier's exact payload matrix
-    (closes finding 3).
-  - `e79866c`: populated `steps` for `glof-evacuation-checklist` too (was the one row
-    still relying on the unsafe fallback — closes finding 1 at the data layer; identical
-    chw/pub content since evacuation instructions aren't audience-restricted the way
-    dosing is). Curated both protocols' `source` field to drop an internal file-path leak
-    the verifier flagged.
-- **Second `/uexel:verify` passed both rubrics**, but its report opened with a "READ
-  FIRST" section catching something more important than a code defect: `.github/
-  workflows/deploy.yml` only runs `scripts/seed-glaciers.ts` on deploy —
-  `seed-dev-data.ts` is dev-only by design (its own header says so) and never runs in
-  production. So `1094ea2`/`e79866c`'s data fix (populated `steps`, cleaned `source`)
-  would never have reached production through a normal push, even though
-  `migration:run` does run there (via the server's `deploy.sh`). Concrete risk: shipping
-  cryohealth-app's fix (public mode refuses to render `body` when `steps` is null)
-  against a production DB where `glof-evacuation-checklist.steps` was still null would
-  have hidden real evacuation instructions from the public during a live GLOF alert.
-  - `263e516`: fixed by encoding the same data fix as an idempotent `UPDATE` migration
-    (`1790097238238-BackfillProtocolSteps.ts`) instead of relying on the seed script —
-    migrations run on deploy, seeds don't. Verified locally both directions: reset both
-    rows to pre-fix state, ran `up()` (correct), ran `down()` (exact prior `source`
-    strings restored, not a guess), ran `up()` again to leave the dev DB correct.
-- Third `/uexel:verify` (final iteration, loop budget 3 max) launched on `e79866c..263e516`
-  — **result not in yet**.
+
+See `docs/ai/sessions/2026-09-22-task19-build-handoff.md` for the full build + two-round
+fix-loop history (steps/DTO validation, tests, the deploy-coupling migration fix). All of
+that work is sound in isolation — verified as such — but points at data that doesn't
+exist in production.
+
+Additional findings from the third verify pass, real but not the blocking issue:
+
+- The migration's `GLOF_STEP` factory drops the step-number suffix — all three GLOF
+  steps would render as bare `"STEP"` (also a React key collision on the app side).
+- The migration has no `steps IS NULL` guard or audit trail — unconditionally overwrites
+  `steps`/`source`, so a future `migration:run` in an environment where these rows
+  already exist (with human-curated content) would silently revert it with no audit row.
 
 ## Not done / deferred
-- Waiting on the third verify's verdict before this can be considered closed or pushed
+
+- Real `steps` content for the 11 actual production protocols — needs a
+  clinician/PM/human author, not an engineering fix
+- The `GLOF_STEP` label-suffix bug and missing `steps IS NULL` guard — worth fixing
+  whenever this work resumes, but secondary to the content gap
 - `Facility.vulnerability` still has no entity mapping (long-standing, unrelated)
-- No CI step boots the built container/image (long-standing, unrelated)
 
 ## Next action
-Read the third verify's verdict when it lands. If pass (or findings acknowledged): push
-to `origin/main` (triggers the production deploy) only with explicit human confirmation —
-that gate was set explicitly this session, not assumed. If findings remain: the fix-loop
-budget (3) is exhausted — per loop-contract.md, that's an escalation (`agent:needs-human`
-on the issue), not another silent iteration.
+
+Human decides (posted as the actual question on cryohealth-app#5):
+
+1. Is real `steps` content for the 11 production protocols coming from a
+   clinician/PM on a timeline — in which case this feature is fine to ship as-is once
+   that content lands (Guidance is designed to show "not available yet" until then,
+   which is the correct behavior, not a bug)?
+2. Or should the complaint-map/rollout scope be reduced until real content exists, so
+   nothing ships looking more complete than it is?
+
+Either way, if this resumes: fix the `GLOF_STEP` label bug and add the `steps IS NULL`
+guard, and change the migration's dev-protocol slugs to whatever the real decision
+requires (a proper upsert against the 11 real slugs, most likely, not the two dev ones).
 
 ## Open questions for a human
-- Push to `origin/main` once verify passes? — blocking: yes, for the production deploy
-  specifically (explicit confirmation required regardless of verify outcome)
+
+- The product/content decision above — blocking: yes, for anything further here
+- Push local commits (schema migration only, the additive `steps` column) independent
+  of the data question? — not decided; the schema change itself is harmless whether or
+  not real content exists yet, but wasn't separated out this session
 
 ## Failed approaches (do not retry)
+
 - `migration:generate` against the current dev DB — picks up unrelated pre-existing
-  schema drift (~15 columns/constraints across `lakes`/`districts`/`glaciers`/
-  `chw_profiles`); always hand-write a minimal migration for a single additive column
+  schema drift; always hand-write a minimal migration for a single additive column
+- **Encoding a data backfill as a migration keyed to dev-only slugs and assuming it
+  covers "production data"** — always check what's actually in production first
+  (`curl` the public endpoint) before assuming dev-seeded content matches. This was the
+  root cause of the entire escalation: three rounds of fixing correct-in-isolation code
+  before checking the one fact that mattered.
 - GitHub Actions "Re-run failed jobs" without confirming the modal — does nothing
   silently; always screenshot to confirm
-- Making GHCR packages public instead of using a PAT — blocked by uExel org policy
 
 ## Loops run
-- Fix loop for #19/cryohealth-app#5's `/uexel:verify` findings: iteration 1 (3 findings
-  fixed, second verify passed with a critical non-blocking observation), iteration 2
-  (deploy-coupling gap fixed via migration, third/final verify in progress). Budget 3
-  max, this is the last one. Verifier: uexel-verifier agent. Rubrics: code-review.md,
-  api-design.md.
+
+- Fix loop for #19/cryohealth-app#5's `/uexel:verify` findings: **iteration 1** (3
+  findings fixed — safety fallback, validation, tests — second verify passed).
+  **Iteration 2** (deploy-coupling migration fix — third verify found it targets
+  nonexistent production data). **Budget exhausted at 3 — escalated, not resolved.**
+  This is a correct outcome per loop-contract.md, not a failure to hide: the loop found
+  real, fixable code issues at every iteration, but iteration 3 surfaced that the
+  premise (which protocols matter) was wrong, which no amount of code fixing resolves.
 
 ## Files touched
-`src/protocols/entities/protocol.entity.ts`, `src/protocols/dto/*.ts` (new:
-`protocol-steps.dto.ts`, `protocol-steps.dto.spec.ts`), `src/protocols/protocols.service.ts`,
-`src/database/migrations/1790093553705-AddProtocolSteps.ts` (new),
-`src/database/migrations/1790097238238-BackfillProtocolSteps.ts` (new),
-`scripts/seed-dev-data.ts`, docs/ai/HANDOFF.md.
+
+This session (escalation): docs/ai/HANDOFF.md,
+docs/ai/sessions/2026-09-22-task19-build-handoff.md (new, archived). No source changed
+this pass — see the archived file for the full build/fix-loop file list.
 
 ## Verification status
-tests: 39/39 passing (28 pre-existing + 11 new). build: clean. Live checks: both
-migrations applied and reverted/re-applied to confirm correctness, both seeded protocols
-have populated `steps`, malformed-payload rejection confirmed via direct DTO validation
-tests. Third/final independent verify: pending.
+
+Code: sound in isolation (39/39 tests, clean build, migration up/down verified correct).
+**Data: wrong target** — confirmed via live production `curl`, not a code defect.
+Not pushed.
 
 ## Resume with
-/uexel:orient   (then: check the final verify verdict on issue #19 / cryohealth-app#5)
+
+/uexel:orient (then: read the human decision on cryohealth-app#5, don't resume the
+fix loop — it's exhausted and the remaining gap isn't a loop-shaped problem)
