@@ -112,8 +112,9 @@ const PROTOCOLS = [
       'STEP 3 · DO THIS: Amoxicillin 250 mg — 1 tablet twice daily, 5 days. Dose row: 2 years / 10-14 kg. Continue feeding and fluids.',
       'STEP 4 · REFER IF: Chest indrawing, unable to drink, or worse in 2 days. Refer to Hassanabad BHU — mark the case for follow-up.',
     ].join('\n'),
-    source:
-      'WHO IMCI chart booklet · LHW curriculum (transcribed from CryoHealth-app src/lib/mock.ts GUIDANCE.chw)',
+    // User-facing -- keep this display-safe (no internal file paths). The transcription
+    // provenance lives in this script's own comments, not in data users see.
+    source: 'WHO IMCI chart booklet · LHW curriculum',
     isDisaster: false,
     // Verbatim from CryoHealth-app/src/lib/mock.ts GUIDANCE.chw/.pub (field `n` -> `label`
     // per the API's ProtocolStep shape, cryohealth-app#5). No text composed here.
@@ -177,13 +178,66 @@ const PROTOCOLS = [
       'Fill clean water containers now.',
       'Keep the KKH bridge route clear for rescue.',
     ].join('\n'),
-    source:
-      'Transcribed from CryoHealth-app src/lib/mock.ts ALERT_DETAIL.checklist',
+    // User-facing -- display-safe, no internal file paths (see the pneumonia row above).
+    source: 'GLOF early-warning evacuation guidance',
     isDisaster: true,
-    // No steps: mock.ts's checklist is flat strings with no per-item tier/why split to
-    // transcribe — inventing one would compose structure that isn't in the source text.
-    // The app's body-line fallback (cryohealth-app#5 Step 7) renders this correctly as-is.
-    steps: null,
+    // Same content for chw and pub: this is public evacuation safety guidance, not
+    // clinical dosing/diagnosis, so there is no audience split to make (unlike the
+    // pneumonia protocol above). `why` on each step reuses mock.ts's CRITICAL.honest
+    // verbatim rather than inventing per-item rationale the source text doesn't have.
+    // Populating steps here (instead of leaving it null) closes a real gap: the
+    // body-line fallback in cryohealth-app's guidance.tsx does not vary by audience, so
+    // any protocol relying on it is only safe when its body has no audience-restricted
+    // content -- true here, but leaving it to the fallback was found (verify pass,
+    // finding 1) to be the wrong default to rely on in general.
+    steps: JSON.stringify({
+      chw: [
+        {
+          label: 'STEP 1',
+          head: 'Move people and animals above the flood mark',
+          why: 'This warning may not have made a sound if your phone is silent.',
+          tier: 'critical',
+          numbered: true,
+        },
+        {
+          label: 'STEP 2',
+          head: 'Fill clean water containers now',
+          why: 'This warning may not have made a sound if your phone is silent.',
+          tier: 'critical',
+          numbered: true,
+        },
+        {
+          label: 'STEP 3',
+          head: 'Keep the KKH bridge route clear for rescue',
+          why: 'This warning may not have made a sound if your phone is silent.',
+          tier: 'critical',
+          numbered: true,
+        },
+      ],
+      pub: [
+        {
+          label: 'STEP 1',
+          head: 'Move people and animals above the flood mark',
+          why: 'This warning may not have made a sound if your phone is silent.',
+          tier: 'critical',
+          numbered: true,
+        },
+        {
+          label: 'STEP 2',
+          head: 'Fill clean water containers now',
+          why: 'This warning may not have made a sound if your phone is silent.',
+          tier: 'critical',
+          numbered: true,
+        },
+        {
+          label: 'STEP 3',
+          head: 'Keep the KKH bridge route clear for rescue',
+          why: 'This warning may not have made a sound if your phone is silent.',
+          tier: 'critical',
+          numbered: true,
+        },
+      ],
+    }),
   },
 ] as const;
 
