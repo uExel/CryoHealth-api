@@ -1,16 +1,19 @@
 # HANDOFF — CryoHealth-api — 2026-09-22 PKT
 
-Session: task19-ship Model: claude-sonnet-5 Branch: main Goal: none Task: #19 (companion to cryohealth-app#5)
+Session: task19-shipped Model: claude-sonnet-5 Branch: main Goal: none Task: #19 (companion to cryohealth-app#5)
 
 ## State
 
-Issue #19 escalated (see `docs/ai/sessions/2026-09-22-task19-escalated-handoff.md`), then
-**human decision made: ship as-is.** Production's 11 real protocols keep `steps: null`
-until a clinician/PM authors real content; Guidance correctly shows "not available yet"
-for them until then — that's the designed behavior, not a bug. The two non-blocking bugs
-the third verify found are now fixed (`af3cc65`). About to push to `origin/main`, which
-triggers CI then an automatic production deploy (schema migration + the now-corrected
-no-op-in-prod backfill migration, container restart on `api.cryohealth.io`).
+**Shipped and deployed.** Issue #19 escalated (see
+`docs/ai/sessions/2026-09-22-task19-escalated-handoff.md`), human decided to ship as-is,
+pushed to `origin/main`. **First push's CI failed** — `npm run lint` (never run for this
+repo this session; verification only used build+test+migration) caught an unused
+variable in the new test file. Fixed (`3e35cb3`), re-pushed, CI green, deploy succeeded.
+Confirmed live: `https://api.cryohealth.io/health` → `{"status":"ok","database":"up"}`;
+`GET /protocols` shows all 11 real protocols now carrying a `steps` field (null, as
+expected — the backfill migration correctly no-ops against real slugs). Production's 11
+real protocols keep `steps: null` until a clinician/PM authors real content; Guidance
+correctly shows "not available yet" for them until then — designed behavior, not a bug.
 
 ## Done this session
 
@@ -21,6 +24,11 @@ no-op-in-prod backfill migration, container restart on `api.cryohealth.io`).
   `'STEP 3'`), which also collided as a React key on the app side. Verified: reverted +
   re-ran the migration locally, confirmed correct labels via `psql`, 39/39 tests still
   passing.
+- Pushed `origin/main`. **First push's CI failed** (`npm run lint`, never run for this
+  repo this session — verification only ever used build+test+migration). `3e35cb3`
+  fixed the unused-variable error, re-pushed, CI green, deploy succeeded.
+- Confirmed live: health check ok, `steps` column present on all 11 real protocols
+  (null, correctly unaffected by the backfill migration).
 
 ## Not done / deferred
 
@@ -31,15 +39,19 @@ no-op-in-prod backfill migration, container restart on `api.cryohealth.io`).
   against production's real slugs, but worth doing before this migration's pattern is
   reused for the real 11 protocols
 - `Facility.vulnerability` still has no entity mapping (long-standing, unrelated)
+- **`npm run lint` was missing from this task's own verification commands throughout
+  planning/build/verify** — build+test+migration was treated as sufficient; CI proved
+  otherwise on the first push. Worth fixing in future `/uexel:plan` runs for this repo:
+  always include lint in the stated verification command.
 
 ## Next action
 
-Push `origin/main`. This is the production deploy — confirmed explicitly by the human
-this session ("fix the bug and push the changes for deployment").
+None blocking. Issue #19 is closed out for this round; real content authoring for the
+11 production protocols is a separate future task.
 
 ## Open questions for a human
 
-- none blocking — decision made, proceeding
+- none blocking
 
 ## Failed approaches (do not retry)
 
@@ -61,16 +73,18 @@ this session ("fix the bug and push the changes for deployment").
 ## Files touched
 
 This session: `src/database/migrations/1790097238238-BackfillProtocolSteps.ts` (label
-fix), docs/ai/HANDOFF.md, docs/ai/sessions/2026-09-22-task19-escalated-handoff.md (new,
-archived).
+fix), `src/protocols/dto/protocol-steps.dto.spec.ts` (CI lint fix), docs/ai/HANDOFF.md,
+docs/ai/sessions/2026-09-22-task19-escalated-handoff.md (new, archived).
 
 ## Verification status
 
-tests: 39/39 passing. build: clean. Migration up/down re-verified locally after the
-label fix. Not independently re-verified by a fourth `/uexel:verify` pass (loop budget
-exhausted at 3; this was a targeted, low-risk bug fix post-decision, not a resumption of
-the loop).
+tests: 39/39 passing. build: clean. lint: clean (0 errors — CI's actual gate; 89
+pre-existing warnings unrelated to this task). Migration up/down re-verified locally
+after the label fix. **Deployed and confirmed live**: health check ok, schema change
+present on all 11 real protocols. Not independently re-verified by a fourth
+`/uexel:verify` pass (loop budget exhausted at 3; both post-decision fixes were
+targeted, low-risk, and independently confirmed by this session directly).
 
 ## Resume with
 
-/uexel:orient (then: confirm the push succeeded and the deploy pipeline went green)
+/uexel:orient
