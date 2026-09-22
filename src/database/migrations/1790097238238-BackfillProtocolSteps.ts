@@ -66,8 +66,13 @@ export class BackfillProtocolSteps1790097238238 implements MigrationInterface {
     ],
   };
 
-  private static readonly GLOF_STEP = (head: string) => ({
-    label: 'STEP',
+  // Bug fixed before push: this factory originally dropped the step number entirely
+  // (`label: 'STEP'` for all three), which also collided as a React key on the app
+  // side (`key={st.label || i}`) since all three siblings shared one label. Now takes
+  // the number explicitly, matching scripts/seed-dev-data.ts's `'STEP 1'`/`'STEP 2'`/
+  // `'STEP 3'` labels exactly -- the two sources of truth must not drift.
+  private static readonly GLOF_STEP = (n: number, head: string) => ({
+    label: `STEP ${n}`,
     head,
     why: 'This warning may not have made a sound if your phone is silent.',
     tier: 'critical',
@@ -77,23 +82,29 @@ export class BackfillProtocolSteps1790097238238 implements MigrationInterface {
   private static readonly GLOF_STEPS = {
     chw: [
       BackfillProtocolSteps1790097238238.GLOF_STEP(
+        1,
         'Move people and animals above the flood mark',
       ),
       BackfillProtocolSteps1790097238238.GLOF_STEP(
+        2,
         'Fill clean water containers now',
       ),
       BackfillProtocolSteps1790097238238.GLOF_STEP(
+        3,
         'Keep the KKH bridge route clear for rescue',
       ),
     ],
     pub: [
       BackfillProtocolSteps1790097238238.GLOF_STEP(
+        1,
         'Move people and animals above the flood mark',
       ),
       BackfillProtocolSteps1790097238238.GLOF_STEP(
+        2,
         'Fill clean water containers now',
       ),
       BackfillProtocolSteps1790097238238.GLOF_STEP(
+        3,
         'Keep the KKH bridge route clear for rescue',
       ),
     ],
