@@ -1,12 +1,15 @@
 import {
   Body,
+  BadRequestException,
   Controller,
+  Delete,
   Get,
   Param,
   ParseIntPipe,
   ParseUUIDPipe,
   Patch,
   Post,
+  Put,
   Query,
   Req,
 } from '@nestjs/common';
@@ -16,6 +19,7 @@ import { Public } from '../common/decorators/public.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { JwtPayload } from '../common/types/jwt-payload.type';
 import { AlertsService } from './alerts.service';
+import { ClearAlertDto, UpdateAlertDto } from './dto/admin-alert.dto';
 import { IssueAlertDto } from './dto/issue-alert.dto';
 import { OverrideAlertDto } from './dto/override-alert.dto';
 import { RecordHazardScoreDto } from './dto/record-hazard-score.dto';
@@ -102,5 +106,55 @@ export class AlertsController {
     @Req() req: { user: JwtPayload },
   ) {
     return this.alerts.override(id, dto, req.user.sub);
+  }
+
+  /* ------------------------------------------------------------------ */
+  /*  Web dashboard admin actions                                        */
+  /* ------------------------------------------------------------------ */
+
+  @Put('admin/alerts/:id')
+  @Roles('cryohealth_admin', 'facility_admin')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Admin: edit an alert (body, tier, window)' })
+  async updateAdmin(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateAlertDto,
+    @Req() req: { user: JwtPayload },
+  ) {
+    return { alert: await this.alerts.updateAdmin(id, dto, req.user.sub) };
+  }
+
+  @Patch('admin/alerts/:id')
+  @Roles('cryohealth_admin', 'facility_admin')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Admin: clear an alert. Reason is mandatory and audited.',
+  })
+  async clearAdmin(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ClearAlertDto,
+    @Req() req: { user: JwtPayload },
+  ) {
+    return {
+      alert: await this.alerts.clearAdmin(id, dto.reason, req.user.sub),
+    };
+  }
+
+  @Delete('admin/alerts/:id')
+  @Roles('cryohealth_admin', 'facility_admin')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary:
+      'Admin: delete an alert. Reason is mandatory and audited; 409 if CHWs have acknowledged it.',
+  })
+  deleteAdmin(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('reason') reason: string,
+    @Req() req: { user: JwtPayload },
+  ) {
+    if (!reason || reason.trim() === '') {
+      throw new BadRequestException('reason is required');
+    }
+    return this.alerts.deleteAdmin(id, reason, req.user.sub);
   }
 }
