@@ -27,13 +27,19 @@ describe('AlertsService', () => {
   // getRepository() returns per-entity mocks the test configures via `managerRepos`.
   type MockRepo = Record<string, jest.Mock>;
   let managerRepos: Record<string, MockRepo>;
+  const managerQuery = jest.fn();
   const dataSource = {
     transaction: jest.fn(
       (
         cb: (m: {
           getRepository: (e: { name: string }) => MockRepo;
+          query: jest.Mock;
         }) => unknown,
-      ) => cb({ getRepository: (entity) => managerRepos[entity.name] }),
+      ) =>
+        cb({
+          getRepository: (entity) => managerRepos[entity.name],
+          query: managerQuery,
+        }),
     ),
   };
 
@@ -90,7 +96,9 @@ describe('AlertsService', () => {
 
     function mockRepos({
       insertResult,
-    }: { insertResult?: { identifiers: { id: string }[] } } = {}) {
+    }: {
+      insertResult?: { identifiers: ({ id: string } | undefined)[] };
+    } = {}) {
       const lakeRepo = {
         findOne: jest.fn().mockResolvedValue(lake),
         update: jest.fn(),
@@ -153,7 +161,7 @@ describe('AlertsService', () => {
 
     it('dedupes without creating a second alert when one is already active for that tier', async () => {
       const { lakeRepo, alertRepo } = mockRepos({
-        insertResult: { identifiers: [] },
+        insertResult: { identifiers: [undefined] },
       });
       alertRepo.findOne.mockResolvedValue({
         id: 'existing-alert',
@@ -194,7 +202,10 @@ describe('AlertsService', () => {
           insert: jest.fn().mockReturnThis(),
           into: jest.fn().mockReturnThis(),
           values: jest.fn().mockReturnThis(),
-          execute: jest.fn().mockRejectedValue({ code: '23505' }),
+          orIgnore: jest.fn().mockReturnThis(),
+          // ON CONFLICT DO NOTHING skipped the row: TypeORM still reports one
+          // identifier entry, but it is undefined.
+          execute: jest.fn().mockResolvedValue({ identifiers: [undefined] }),
         }),
         findOne: jest.fn().mockResolvedValue({ id: 'existing-alert' }),
       };
@@ -263,6 +274,86 @@ describe('AlertsService', () => {
       await expect(
         service.override('ghost', { clear: true, reason: 'x' }, 'admin-1'),
       ).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
+  describe('admin actions', () => {
+    it('refuses to delete an alert CHWs have acknowledged, naming the dependents', async () => {
+      managerQuery.mockResolvedValue([{ n: 2 }]);
+      const alertRepo = { delete: jest.fn() };
+      managerRepos = { Alert: alertRepo, AuditEntry: { insert: jest.fn() } };
+
+      await expect(
+        service.deleteAdmin('a1', 'test alert', 'admin-1'),
+      ).rejects.toMatchObject({
+        response: { dependents: { alert_acknowledgements: 2 } },
+      });
+      expect(alertRepo.delete).not.toHaveBeenCalled();
+    });
+
+    it('deletes and audits with the mandatory reason', async () => {
+      managerQuery.mockResolvedValue([{ n: 0 }]);
+      const auditInsert = jest.fn();
+      managerRepos = {
+        Alert: { delete: jest.fn().mockResolvedValue({ affected: 1 }) },
+        AuditEntry: { insert: auditInsert },
+      };
+
+      await expect(
+        service.deleteAdmin('a1', 'test alert', 'admin-1'),
+      ).resolves.toEqual({ ok: true });
+      expect(auditInsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'alert.delete',
+          reason: 'test alert',
+        }),
+      );
+    });
+
+    it('404s deleting an alert that does not exist', async () => {
+      managerQuery.mockResolvedValue([{ n: 0 }]);
+      managerRepos = {
+        Alert: { delete: jest.fn().mockResolvedValue({ affected: 0 }) },
+        AuditEntry: { insert: jest.fn() },
+      };
+
+      await expect(
+        service.deleteAdmin('ghost', 'x', 'admin-1'),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('404s clearing an alert that is not active', async () => {
+      managerRepos = {
+        Alert: { update: jest.fn().mockResolvedValue({ affected: 0 }) },
+        AuditEntry: { insert: jest.fn() },
+      };
+
+      await expect(
+        service.clearAdmin('a1', 'resolved', 'admin-1'),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('writes null (not skip) when the edit clears the estimated window', async () => {
+      const update = jest.fn();
+      managerRepos = {
+        Alert: {
+          findOne: jest
+            .fn()
+            .mockResolvedValue({ id: 'a1', estimatedWindow: 'next 24h' }),
+          update,
+          findOneOrFail: jest.fn().mockResolvedValue({ id: 'a1' }),
+        },
+        AuditEntry: { insert: jest.fn() },
+      };
+
+      await service.updateAdmin('a1', { estimatedWindow: null }, 'admin-1');
+      expect(update).toHaveBeenCalledWith('a1', { estimatedWindow: null });
+    });
+
+    it('rejects an edit with no fields', async () => {
+      await expect(
+        service.updateAdmin('a1', {}, 'admin-1'),
+      ).rejects.toBeInstanceOf(BadRequestException);
     });
   });
 });

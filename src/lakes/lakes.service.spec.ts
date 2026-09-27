@@ -17,7 +17,10 @@ describe('LakesService', () => {
         LakesService,
         { provide: getRepositoryToken(Lake), useValue: lakesRepo },
         { provide: getRepositoryToken(Observation), useValue: obsRepo },
-        { provide: DataSource, useValue: { query: jest.fn(), transaction: jest.fn() } },
+        {
+          provide: DataSource,
+          useValue: { query: jest.fn(), transaction: jest.fn() },
+        },
       ],
     }).compile();
     service = mod.get(LakesService);

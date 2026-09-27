@@ -1,5 +1,6 @@
 import {
   IsArray,
+  IsDateString,
   IsIn,
   IsNotEmpty,
   IsOptional,
@@ -15,8 +16,11 @@ export class IssueAlertDto {
   @IsIn(TIERS) tier: Tier;
   @IsString() @IsNotEmpty() title: string;
   @IsString() @IsNotEmpty() body: string;
-  @IsOptional() @IsString() windowStart?: string;
-  @IsOptional() @IsString() windowEnd?: string;
+  @IsOptional() @IsDateString() windowStart?: string;
+  @IsOptional() @IsDateString() windowEnd?: string;
+  /** Free-text window ("next 24h") shown by the web dashboard — distinct from the
+   *  timestamp windowStart/windowEnd the mobile app renders. */
+  @IsOptional() @IsString() estimatedWindow?: string;
   @IsOptional() @IsString() downstreamSummary?: string;
   /** Short action tags ("Move to high ground") and a numbered action checklist for the
    *  mobile alert card/critical screen — optional, authored by whoever issues the alert. */
