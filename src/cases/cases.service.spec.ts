@@ -20,7 +20,10 @@ describe('CasesService', () => {
       providers: [
         CasesService,
         { provide: getRepositoryToken(ChwCase), useValue: repo },
-        { provide: DataSource, useValue: { query: jest.fn(), transaction: jest.fn() } },
+        {
+          provide: DataSource,
+          useValue: { query: jest.fn(), transaction: jest.fn() },
+        },
       ],
     }).compile();
     service = moduleRef.get(CasesService);
