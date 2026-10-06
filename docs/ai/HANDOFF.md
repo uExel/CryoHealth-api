@@ -1,47 +1,43 @@
-# HANDOFF — CryoHealth-api — 2026-09-27 22:58 PKT
-Session: alert-broadcast-fix  Model: claude-opus-5-5  Branch: fix/alert-broadcast-and-admin-routes  Goal: none  Task: none (user bug report; PR #20)
+# HANDOFF — CryoHealth-api — 2026-10-06 14:43 PKT
+Session: issue-19-protocol-steps  Model: claude-opus-5-5  Branch: fix/19-protocol-steps  Goal: none  Task: #19 (PR #21)
 
 ## State
-PR #20 open, not merged or deployed. It fixes three alert bugs that returned 500s:
-- invalid `windowStart` text caused a 500;
-- a duplicate manual issue ran a query inside an aborted transaction (25P02) and 500'd instead of returning 409;
-- the geo hazard-score dedupe path crashed: TypeORM 0.3.31 returns `identifiers = [undefined]`, not `[]`, when `ON CONFLICT DO NOTHING` skips a row, so `identifiers[0].id` threw.
+Issue #19 is closed and PR #21 is open into `main`, not merged. Structured protocol `steps` (jsonb) had already shipped in `b197c55`. This session verified it end to end and made the two follow-up cleanups:
+- `TIERS` is now exported from `src/common/types/tier.type.ts`, and `Tier` is derived from it;
+- `ProtocolStepDto` imports `TIERS` instead of keeping its own copy;
+- the outdated header comment in `scripts/seed-dev-data.ts` is fixed (it said the GLOF protocol has no `steps`).
 
-It also adds `PUT`/`PATCH`/`DELETE /admin/alerts/:id`, which the web dashboard calls but the API never had (they were lost in cryohealth `20da49a`). Until #20 deploys, the admin portal's alert broadcast, edit, clear and delete keep failing in prod. Companion dashboard PR: uExel/cryohealth#57.
+No schema or behavior change.
 
 ## Done this session
-- Fixed manual/geo alert insert dedupe; `IssueAlertDto` gains `@IsDateString` windows and free-text `estimatedWindow` (commit de3b6c1)
-- Added admin alert edit/clear/delete routes with audited reasons; delete returns 409 with `dependents` when acknowledgements exist (commit de3b6c1)
-- Opened PR #20
+- Applied the pending dev-DB migrations `AddProtocolSteps` and `BackfillProtocolSteps`, re-ran the dev seed, and confirmed that public `GET /protocols` returns 200 with `chw`/`pub` arrays (glof-evacuation-checklist 3/3, fast-breathing-pneumonia-2y 4/3)
+- Single `TIERS` source for protocol step validation, and the seed comment fix (commit 4715d06)
+- Opened PR #21 and closed #19 with the verification as evidence
+- Installed `gh` 2.102.0 user-local in `~/.local/bin` (no sudo on this machine), logged in as shabirashuri
 
 ## Not done / deferred
-- Tier-change policy — needs a human decision, not a code fix. Neither geo nor manual issuing clears the previous tier's active alert, and prod has 3 lakes with multiple active alerts (Shishper, Batura, Khurdopin).
-- Shishper `currentTier` is wrong: it shows `watch` because of a manual "test" WATCH alert from 2026-09-07, while geo has an active CRITICAL. Deleting or clearing the alert does not restore `currentTier`.
-- The "test" alert is live on the public feed. User wants it deleted; that needs #20 deployed first.
-- Local `main` has an unpushed docs commit `8b9bab6` (pool-exhaustion handoff). It was left off this branch on purpose, and its session archive file is byte-identical to this branch's.
-- Uncommitted user edits in `src/cases/cases.service.spec.ts` and `src/lakes/lakes.service.spec.ts` are left untouched.
+- The alerts DTOs (`record-hazard-score`, `issue-alert`, `admin-alert`, `override-alert`) still keep their own `TIERS` copies. They should switch to the shared export, but that is out of scope for #19.
+- A protocol row with `steps: null` was not exercised live (no such row exists). The column is nullable.
+- Open issues remaining per plan: #13 (CORS config, risk score, downstream population on `/lakes`), #14, plus goal umbrellas #1–#3.
 
 ## Next action
-gh pr view 20 --repo uExel/CryoHealth-api
+gh pr view 21 --repo uExel/CryoHealth-api   (then start #13 on its own branch off main)
 
 ## Open questions for a human
-- On a tier change, should the previous tier's active alert auto-clear? — blocking: no
-- Should Shishper's `currentTier` be reset to match geo's CRITICAL? — blocking: no (but safety-relevant)
-- Should admin alert edit (PUT) require a reason like `PATCH /alerts/:id` does? This ports the old dashboard behaviour, which audited without one. — blocking: no
+- Should the alerts DTO `TIERS` cleanup go in its own PR, or ride along with #13? — blocking: no
 
 ## Failed approaches (do not retry)
-- Checking `result.identifiers.length === 0` after `.orIgnore()` — TypeORM always pushes one entry per value set; check `identifiers[0]?.id` instead.
-- Catching 23505 and then querying on the same transaction manager — Postgres has already aborted the transaction.
-- Reproducing by broadcasting on prod — `GET /alerts` is the public safety feed.
+- Running `npm run migration:run` from a working tree that has another issue's uncommitted migration: it applies that migration too. Verify from a clean checkout of `main` instead.
+- `! gh auth login` sent from the VS Code extension chat: it does not execute. Run it in a real terminal.
 
 ## Loops run
 - none
 
 ## Files touched
-src/alerts/alerts.controller.ts, src/alerts/alerts.service.ts, src/alerts/alerts.service.spec.ts, src/alerts/dto/issue-alert.dto.ts, src/alerts/dto/admin-alert.dto.ts (new), docs/ai/HANDOFF.md, docs/ai/sessions/2026-09-22-task19-shipped-handoff.md
+src/common/types/tier.type.ts, src/protocols/dto/protocol-steps.dto.ts, scripts/seed-dev-data.ts, docs/ai/HANDOFF.md, docs/ai/sessions/2026-09-27-alert-broadcast-fix-handoff.md (new)
 
 ## Verification status
-tests: 45/45 (the two dedupe tests fail on the old code)  tsc: clean  lint (src/alerts): clean  review: none  qa: n/a — no live DB test; Docker was not running
+tests: src/protocols 11/11; CI `test` passing on PR #21  tsc: clean  lint (changed files): 0 errors  review: none  qa: live `GET /protocols` against dev DB, passing
 
 ## Resume with
-/uexel:orient   (then: gh pr view 20 --repo uExel/CryoHealth-api)
+/uexel:orient   (then: gh pr view 21 --repo uExel/CryoHealth-api)
