@@ -10,9 +10,7 @@ import {
   IsString,
   ValidateNested,
 } from 'class-validator';
-import type { Tier } from '../../common/types/tier.type';
-
-const TIERS: Tier[] = ['normal', 'watch', 'high', 'critical'];
+import { TIERS, type Tier } from '../../common/types/tier.type';
 
 export class ProtocolStepDto {
   @IsString()
