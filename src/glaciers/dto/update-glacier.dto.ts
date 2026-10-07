@@ -72,6 +72,10 @@ export class UpdateGlacierDto {
 
   @IsOptional()
   @IsString()
+  sourceUrl?: string;
+
+  @IsOptional()
+  @IsString()
   lastObserved?: string;
 
   @IsOptional()

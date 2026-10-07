@@ -24,7 +24,9 @@
     "seed:lakes": "ts-node scripts/seed-lakes.ts",
     "seed:users": "ts-node scripts/seed-users.ts",
     "seed:dev-data": "ts-node scripts/seed-dev-data.ts",
-    "verify:lakes": "ts-node scripts/verify-lakes.ts"
+    "seed:glaciers": "ts-node scripts/seed-glaciers.ts",
+    "verify:lakes": "ts-node scripts/verify-lakes.ts",
+    "verify:glaciers": "ts-node scripts/verify-glaciers.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

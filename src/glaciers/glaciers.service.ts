@@ -13,6 +13,8 @@ import { AuditEntry } from '../alerts/entities/audit-entry.entity';
 import { CreateGlacierDto } from './dto/create-glacier.dto';
 import { UpdateGlacierDto } from './dto/update-glacier.dto';
 
+const POSTGRES_UNIQUE_VIOLATION = '23505';
+
 @Injectable()
 export class GlaciersService {
   constructor(
@@ -24,6 +26,15 @@ export class GlaciersService {
     private readonly districts: Repository<District>,
     private readonly dataSource: DataSource,
   ) {}
+
+  private isUniqueViolation(err: unknown): boolean {
+    return (
+      typeof err === 'object' &&
+      err !== null &&
+      'code' in err &&
+      err.code === POSTGRES_UNIQUE_VIOLATION
+    );
+  }
 
   private async audit(
     manager: EntityManager,
@@ -65,6 +76,7 @@ export class GlaciersService {
       status: g.status,
       terminus_type: g.terminusType ?? null,
       source: g.source ?? null,
+      source_url: g.sourceUrl ?? null,
       last_observed: g.lastObserved ?? null,
       notes: g.notes ?? null,
       district_name: g.district?.name ?? null,
@@ -97,6 +109,7 @@ export class GlaciersService {
       status: g.status,
       terminus_type: g.terminusType ?? null,
       source: g.source ?? null,
+      source_url: g.sourceUrl ?? null,
       last_observed: g.lastObserved ?? null,
       notes: g.notes ?? null,
       district_name: g.district?.name ?? null,
@@ -148,11 +161,22 @@ export class GlaciersService {
         status: dto.status,
         terminusType: dto.terminusType || undefined,
         source: dto.source,
+        sourceUrl: dto.sourceUrl || undefined,
         lastObserved: dto.lastObserved ? new Date(dto.lastObserved) : undefined,
         notes: dto.notes || undefined,
       });
 
-      const saved = await repo.save(glacier);
+      let saved: Glacier;
+      try {
+        saved = await repo.save(glacier);
+      } catch (err) {
+        if (this.isUniqueViolation(err)) {
+          throw new ConflictException(
+            'A glacier with this RGI ID already exists.',
+          );
+        }
+        throw err;
+      }
 
       await this.audit(
         manager,
@@ -212,13 +236,25 @@ export class GlaciersService {
       if (dto.terminusType !== undefined)
         glacier.terminusType = dto.terminusType || undefined;
       if (dto.source !== undefined) glacier.source = dto.source;
+      if (dto.sourceUrl !== undefined)
+        glacier.sourceUrl = dto.sourceUrl || undefined;
       if (dto.lastObserved !== undefined)
         glacier.lastObserved = dto.lastObserved
           ? new Date(dto.lastObserved)
           : undefined;
       if (dto.notes !== undefined) glacier.notes = dto.notes || undefined;
 
-      const saved = await repo.save(glacier);
+      let saved: Glacier;
+      try {
+        saved = await repo.save(glacier);
+      } catch (err) {
+        if (this.isUniqueViolation(err)) {
+          throw new ConflictException(
+            'A glacier with this RGI ID already exists.',
+          );
+        }
+        throw err;
+      }
 
       const changed: Record<string, any> = {};
       const fieldsToCheck: (keyof Glacier)[] = [
@@ -235,6 +271,7 @@ export class GlaciersService {
         'status',
         'terminusType',
         'source',
+        'sourceUrl',
         'lastObserved',
         'notes',
       ];
@@ -270,6 +307,7 @@ export class GlaciersService {
         status: saved.status,
         terminus_type: saved.terminusType ?? null,
         source: saved.source ?? null,
+        source_url: saved.sourceUrl ?? null,
         last_observed: saved.lastObserved ?? null,
         notes: saved.notes ?? null,
       };

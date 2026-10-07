@@ -67,6 +67,10 @@ export class CreateGlacierDto {
 
   @IsOptional()
   @IsString()
+  sourceUrl?: string;
+
+  @IsOptional()
+  @IsString()
   lastObserved?: string;
 
   @IsOptional()

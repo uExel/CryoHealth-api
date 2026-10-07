@@ -1,6 +1,6 @@
 /**
  * Idempotent dev-data seed for the tables `seed-lakes.ts` and `seed-users.ts` don't
- * cover: districts, glaciers, protocols, alerts, alert acknowledgements, facilities,
+ * cover: districts, protocols, alerts, alert acknowledgements, facilities,
  * cases. Local dev / visual-testing only — never run against a real deployment.
  *
  * Provenance discipline follows `src/lakes/data/lakes.seed-data.ts` (see decision
@@ -11,10 +11,9 @@
  *  - districts: name + province only (real, well-known GB districts). `population` and
  *    `centroid_lat/lng` are left NULL — no cited source for this seed, and no query in
  *    either consuming repo reads them today.
- *  - glaciers: name + lat/lng reuse the exact coordinates and citations already vetted
- *    in `lakes.seed-data.ts` for the correspondingly-named glacier (that file cites a
- *    real source per lake). `area_km2`, `length_km`, `elevation_min_m`,
- *    `elevation_max_m` are left NULL — no measured figures were sourced for this seed.
+ *  - glaciers: not seeded here. Run `npm run seed:glaciers` — the RGI v7.0-backed
+ *    register in `src/glaciers/data/glaciers.seed-data.ts` (issue #14). Inserting
+ *    differently-named copies here produced duplicate, measurement-less rows.
  *  - glacier_observations, lake_risk_scores: intentionally NOT seeded. A fabricated
  *    time series here is indistinguishable from real CryoHealth-geo pipeline output —
  *    exactly the failure mode the decision doc warns about. Needs real Sentinel-1/2
@@ -46,59 +45,6 @@ const DISTRICTS = [
   { name: 'Hunza', province: 'Gilgit Baltistan' },
   { name: 'Ghizer', province: 'Gilgit Baltistan' },
 ];
-
-// lat/lng + source copied from src/lakes/data/lakes.seed-data.ts's entry for the
-// correspondingly-named lake — same citation, not independently verified here.
-const GLACIERS = [
-  {
-    name: 'Hassanabad glacier (Shishper)',
-    district: 'Hunza',
-    lat: 36.4,
-    lng: 74.61,
-    source:
-      'Ali et al., "Formation of a hazardous ice-dammed glacier lake: a case study of anomalous behavior of Hassanabad glacier system in the Karakoram", Discover Applied Sciences (Springer Nature), 2020 — https://link.springer.com/article/10.1007/s42452-020-2989-4',
-  },
-  {
-    name: 'Khurdopin glacier',
-    district: 'Hunza',
-    lat: 36.3383,
-    lng: 75.5083,
-    source:
-      '"Brief communication: The Khurdopin glacier surge revisited – extreme flow velocities and formation of a dammed lake in 2017", The Cryosphere (Copernicus), 2018 — https://tc.copernicus.org/articles/12/95/2018/',
-  },
-  {
-    name: 'Badswat glacier (G1/G2)',
-    district: 'Ghizer',
-    lat: 36.4855,
-    lng: 74.0775,
-    source:
-      'Midpoint of glacier IDs G074052E36491N/G074103E36480N cited in "Determining the Events in a Glacial Disaster Chain at Badswat Glacier in the Karakoram Range Using Remote Sensing" — https://www.researchgate.net/publication/350183638',
-  },
-  {
-    name: 'Passu Glacier',
-    district: 'Hunza',
-    lat: 36.47,
-    lng: 74.77,
-    source:
-      'Wikipedia: Passu Glacier — https://en.wikipedia.org/wiki/Passu_Glacier',
-  },
-  {
-    name: 'Ghulkin Glacier',
-    district: 'Hunza',
-    lat: 36.4653,
-    lng: 74.856,
-    source:
-      'AikQaum geographic profile of Ghulkin Glacier — https://aikqaum.com/ghulkin-glacier-a-natural-wonder-in-the-karakoram-range-of-pakistan/',
-  },
-  {
-    name: 'Batura Glacier',
-    district: 'Hunza',
-    lat: 36.53,
-    lng: 74.65,
-    source:
-      'Wikipedia: Batura Glacier — https://en.wikipedia.org/wiki/Batura_Glacier',
-  },
-] as const;
 
 // Transcribed from CryoHealth-app/src/lib/mock.ts GUIDANCE.chw and CRITICAL/ALERT_DETAIL.
 const PROTOCOLS = [
@@ -258,28 +204,6 @@ async function main() {
     );
     console.log(
       `districts: ${districtsUpserted} upserted; lakes.district_id backfilled`,
-    );
-
-    let glaciersInserted = 0;
-    let glaciersSkipped = 0;
-    for (const g of GLACIERS) {
-      const existing = await dataSource.query(
-        `SELECT id FROM glaciers WHERE name = $1`,
-        [g.name],
-      );
-      if (existing.length > 0) {
-        glaciersSkipped++;
-        continue;
-      }
-      await dataSource.query(
-        `INSERT INTO glaciers (name, district_id, lat, lng, source)
-         SELECT $1, d.id, $2, $3, $4 FROM districts d WHERE d.name = $5`,
-        [g.name, g.lat, g.lng, g.source, g.district],
-      );
-      glaciersInserted++;
-    }
-    console.log(
-      `glaciers: ${glaciersInserted} inserted, ${glaciersSkipped} already present`,
     );
 
     let protocolsUpserted = 0;

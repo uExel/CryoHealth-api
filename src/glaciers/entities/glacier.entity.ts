@@ -58,6 +58,9 @@ export class Glacier {
   @Column()
   source: string;
 
+  @Column({ name: 'source_url', nullable: true })
+  sourceUrl?: string;
+
   @Column({ name: 'last_observed', type: 'timestamptz', nullable: true })
   lastObserved?: Date;
 
