@@ -1,47 +1,64 @@
-# HANDOFF — CryoHealth-api — 2026-09-27 22:58 PKT
-Session: alert-broadcast-fix  Model: claude-opus-5-5  Branch: fix/alert-broadcast-and-admin-routes  Goal: none  Task: none (user bug report; PR #20)
+# HANDOFF — CryoHealth-api — 2026-10-07 13:00 PKT
+Session: issue-14-glacier-rgi-seed  Model: claude-opus-5-5  Branch: fix/14-glacier-rgi-seed  Goal: cryohealth#1  Task: #14
 
 ## State
-PR #20 open, not merged or deployed. It fixes three alert bugs that returned 500s:
-- invalid `windowStart` text caused a 500;
-- a duplicate manual issue ran a query inside an aborted transaction (25P02) and 500'd instead of returning 409;
-- the geo hazard-score dedupe path crashed: TypeORM 0.3.31 returns `identifiers = [undefined]`, not `[]`, when `ON CONFLICT DO NOTHING` skips a row, so `identifiers[0].id` threw.
+The glacier register is now seeded from cited data. It has 32 glaciers:
+- 24 are matched to RGI v7.0. Their area, length, elevation, centroid and outline date are read from a committed extract (`src/glaciers/data/rgi7-region14-extract.csv`).
+- 6 are tributaries with no RGI outline of their own. They carry only published values: USGS PP 1386-F Table 3, Young & Schmok 1989 (Miar), and Wake & Searle 1993 (Pumarikish).
+- 2 are names only, with no published measurement: Ghandershish and Ghompot.
 
-It also adds `PUT`/`PATCH`/`DELETE /admin/alerts/:id`, which the web dashboard calls but the API never had (they were lost in cryohealth `20da49a`). Until #20 deploys, the admin portal's alert broadcast, edit, clear and delete keep failing in prod. Companion dashboard PR: uExel/cryohealth#57.
+Each matched glacier gets one dated baseline observation, and so does each tributary that has a published value. Districts come from the geoBoundaries PAK ADM2 district that contains the RGI terminus point. Siachen and Bilafond are blank on purpose because the area is disputed.
+
+The migration adds a `glaciers.source_url` column and a partial unique index on `rgi_id`. A duplicate RGI ID on admin create or edit returns 409. PR is open for #14. Nothing has been run in prod yet.
 
 ## Done this session
-- Fixed manual/geo alert insert dedupe; `IssueAlertDto` gains `@IsDateString` windows and free-text `estimatedWindow` (commit de3b6c1)
-- Added admin alert edit/clear/delete routes with audited reasons; delete returns 409 with `dependents` when acknowledgements exist (commit de3b6c1)
-- Opened PR #20
+- Rewrote `scripts/seed-glaciers.ts` to use the data module (`src/glaciers/data/glaciers.seed-data.ts`) and upsert on `rgi_id`. It updates legacy rows in place, by name or renamed name.
+- Added `scripts/verify-glaciers.ts`. It fails on:
+  - a missing citation;
+  - a point outside the region;
+  - a zero or negative measurement;
+  - an unregistered NULL `rgi_id`;
+  - an unmatched record whose values differ from its citation.
+- Matched 5 glaciers to unnamed RGI outlines by location. The evidence is in each record's notes:
+  - Chogo Lungma
+  - Shani
+  - Mashish
+  - Mazeno
+  - Badswat (G1), renamed from "Badswat Glacier (G1/G2)"
+- Added Passu and Ghulkin, both matched by RGI name.
+- Set Shishper (RGI "Hasanabad Glacier II", a team identification) to status `surging`, the project's status term. The old value `surge-type` was not in the DTO or dashboard enums.
+- `seed-dev-data.ts` no longer inserts glaciers. Its differently-named copies had created duplicate rows with no measurements.
+- Added `seed:glaciers` and `verify:glaciers` npm scripts.
+- Added `src/glaciers/data/glaciers.seed-data.spec.ts`, which checks the data module with no DB.
 
 ## Not done / deferred
-- Tier-change policy — needs a human decision, not a code fix. Neither geo nor manual issuing clears the previous tier's active alert, and prod has 3 lakes with multiple active alerts (Shishper, Batura, Khurdopin).
-- Shishper `currentTier` is wrong: it shows `watch` because of a manual "test" WATCH alert from 2026-09-07, while geo has an active CRITICAL. Deleting or clearing the alert does not restore `currentTier`.
-- The "test" alert is live on the public feed. User wants it deleted; that needs #20 deployed first.
-- Local `main` has an unpushed docs commit `8b9bab6` (pool-exhaustion handoff). It was left off this branch on purpose, and its session archive file is byte-identical to this branch's.
-- Uncommitted user edits in `src/cases/cases.service.spec.ts` and `src/lakes/lakes.service.spec.ts` are left untouched.
+- Vague team references need exact citations: the IUCN Karakoram source (Trango), the CKNP inventory (Chogo Lungma), PMD (Shani) and GAMDAM (Badswat). They are recorded as "as cited by the CryoHealth team".
+- Districts: prod has 10 Gilgit-Baltistan districts, entered by hand through the admin UI. No seed creates them, so a fresh DB has only Hunza and Ghizer. In that case the glacier seed leaves the other districts NULL and prints a warning. Seeding them needs a source for the population figures.
+- Glacier lat/lng stays the RGI centroid, by user decision; the terminus was considered and rejected. The dashboard ranks glaciers against lakes by distance from this point.
+- Conflict with PR #21: both PRs rewrite `docs/ai/HANDOFF.md`, so whichever merges second needs a trivial conflict resolution. The archived `sessions/2026-09-27-alert-broadcast-fix-handoff.md` is byte-identical in both branches.
+- Prod rollout: run `npm run migration:run`, then `npm run seed:glaciers && npm run verify:glaciers` in the API container. This updates prod's 30 existing glacier rows in place and adds Passu and Ghulkin.
 
 ## Next action
-gh pr view 20 --repo uExel/CryoHealth-api
+gh pr view --repo uExel/CryoHealth-api fix/14-glacier-rgi-seed
 
 ## Open questions for a human
-- On a tier change, should the previous tier's active alert auto-clear? — blocking: no
-- Should Shishper's `currentTier` be reset to match geo's CRITICAL? — blocking: no (but safety-relevant)
-- Should admin alert edit (PUT) require a reason like `PATCH /alerts/:id` does? This ports the old dashboard behaviour, which audited without one. — blocking: no
+- Exact references for the four vague citations above. — blocking: no
+- Source for the prod district populations, so the 10 districts can be seeded. — blocking: no
 
 ## Failed approaches (do not retry)
-- Checking `result.identifiers.length === 0` after `.orIgnore()` — TypeORM always pushes one entry per value set; check `identifiers[0]?.id` instead.
-- Catching 23505 and then querying on the same transaction manager — Postgres has already aborted the transaction.
-- Reproducing by broadcasting on prod — `GET /alerts` is the public safety feed.
+- The NSIDC RGI v7 / v6 downloads need an Earthdata login. Use the public GLIMS GeoServer WFS (`GLIMS:RGI2000-v7.0-G-14_south_asia_west_epsg3857`) instead.
+- `manager.query('UPDATE … RETURNING')` returns `[rows, rowCount]` in TypeORM's postgres driver, not just the rows. Destructure it, or a missing row is never inserted.
+- Passing a bare `YYYY-MM-DD` to a timestamptz column stores local midnight (the DB session runs in Asia/Karachi). Append `T00:00:00Z`.
+- `CREATE DATABASE` for a scratch test DB: the `cryohealth` role has no CREATEDB permission. Back up with `pg_dump` and test against the dev DB instead.
 
 ## Loops run
 - none
 
 ## Files touched
-src/alerts/alerts.controller.ts, src/alerts/alerts.service.ts, src/alerts/alerts.service.spec.ts, src/alerts/dto/issue-alert.dto.ts, src/alerts/dto/admin-alert.dto.ts (new), docs/ai/HANDOFF.md, docs/ai/sessions/2026-09-22-task19-shipped-handoff.md
+package.json, scripts/seed-glaciers.ts, scripts/verify-glaciers.ts (new), scripts/seed-dev-data.ts, src/database/migrations/1791283685914-GlacierRgiUniqueAndSourceUrl.ts (new), src/glaciers/data/ (new: glaciers.seed-data.ts, glaciers.seed-data.spec.ts, rgi7-region14-extract.csv, README.md), src/glaciers/entities/glacier.entity.ts, src/glaciers/dto/create-glacier.dto.ts, src/glaciers/dto/update-glacier.dto.ts, src/glaciers/glaciers.service.ts, docs/ai/HANDOFF.md, docs/ai/sessions/2026-09-27-alert-broadcast-fix-handoff.md
 
 ## Verification status
-tests: 45/45 (the two dedupe tests fail on the old code)  tsc: clean  lint (src/alerts): clean  review: none  qa: n/a — no live DB test; Docker was not running
+tests: 87/87  tsc: clean  lint (glacier files): clean  review: none  qa: local dev DB. The migration ran; the seed was idempotent across repeated runs and inserted a missing row exactly once; `verify:glaciers` passed; `GET /glaciers` and `/glaciers/:id/observations` were checked, and `/admin/glaciers` was viewed in the dashboard.
 
 ## Resume with
-/uexel:orient   (then: gh pr view 20 --repo uExel/CryoHealth-api)
+/uexel:orient   (then: gh pr view --repo uExel/CryoHealth-api fix/14-glacier-rgi-seed)
