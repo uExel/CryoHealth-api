@@ -1,47 +1,38 @@
-# HANDOFF — CryoHealth-api — 2026-09-27 22:58 PKT
-Session: alert-broadcast-fix  Model: claude-opus-5-5  Branch: fix/alert-broadcast-and-admin-routes  Goal: none  Task: none (user bug report; PR #20)
+# HANDOFF — CryoHealth-api — 2026-10-07
+Session: issue-30-lake-alerts-status  Model: claude-sonnet-5-5  Branch: fix/issue-30-lake-alerts-include-status  Goal: none  Task: cryohealth#30 (API half; cleared alerts render as active)
 
 ## State
-PR #20 open, not merged or deployed. It fixes three alert bugs that returned 500s:
-- invalid `windowStart` text caused a 500;
-- a duplicate manual issue ran a query inside an aborted transaction (25P02) and 500'd instead of returning 409;
-- the geo hazard-score dedupe path crashed: TypeORM 0.3.31 returns `identifiers = [undefined]`, not `[]`, when `ON CONFLICT DO NOTHING` skips a row, so `identifiers[0].id` threw.
-
-It also adds `PUT`/`PATCH`/`DELETE /admin/alerts/:id`, which the web dashboard calls but the API never had (they were lost in cryohealth `20da49a`). Until #20 deploys, the admin portal's alert broadcast, edit, clear and delete keep failing in prod. Companion dashboard PR: uExel/cryohealth#57.
+One-line API change plus a test, on a new branch from `origin/main` (14636dd, includes merged PR #20). No PR is open and nothing is deployed. It is the API half of cryohealth#30: the website's lake page cannot tell cleared alerts from active ones because `GET /lakes/:id/detail` did not return alert `status`. Companion website branch: `fix/issue-30-cleared-alerts-look-active` in uExel/cryohealth.
 
 ## Done this session
-- Fixed manual/geo alert insert dedupe; `IssueAlertDto` gains `@IsDateString` windows and free-text `estimatedWindow` (commit de3b6c1)
-- Added admin alert edit/clear/delete routes with audited reasons; delete returns 409 with `dependents` when acknowledgements exist (commit de3b6c1)
-- Opened PR #20
+- `src/lakes/lakes.service.ts` `lakeDetail()`: the alerts query now also selects `status` and `"clearedAt" AS cleared_at`. Column names were checked against the migrations.
+- `src/lakes/lakes.service.spec.ts`: there was no lake-detail test, so one was added; it asserts the alerts SQL selects `status` and `cleared_at` and that rows pass through. The `DataSource` mock was hoisted into a shared const to reach it.
+- Archived the previous handoff to `docs/ai/sessions/2026-09-27-alert-broadcast-fix-handoff.md`.
 
 ## Not done / deferred
-- Tier-change policy — needs a human decision, not a code fix. Neither geo nor manual issuing clears the previous tier's active alert, and prod has 3 lakes with multiple active alerts (Shishper, Batura, Khurdopin).
-- Shishper `currentTier` is wrong: it shows `watch` because of a manual "test" WATCH alert from 2026-09-07, while geo has an active CRITICAL. Deleting or clearing the alert does not restore `currentTier`.
-- The "test" alert is live on the public feed. User wants it deleted; that needs #20 deployed first.
-- Local `main` has an unpushed docs commit `8b9bab6` (pool-exhaustion handoff). It was left off this branch on purpose, and its session archive file is byte-identical to this branch's.
-- Uncommitted user edits in `src/cases/cases.service.spec.ts` and `src/lakes/lakes.service.spec.ts` are left untouched.
+- Deploy: the website's lake page shows "Cleared" only after this is merged and deployed.
+- Local `main` still has the unpushed commit 53a86a2 ("allow frontend CORS origins"). This branch was deliberately cut from `origin/main` and does not include it.
+- An unstaged `package-lock.json` change exists (about 139 lines); the owner said it is harmless and must stay out of the commit.
+- `CORS_ORIGINS` is still ignored in `src/main.ts` (both branches of the ternary return the same hard-coded list, only `http://localhost:8080` and `https://cryohealth.io`). Not touched here.
+- The feed (`GET /alerts`) returns camelCase entity fields while the website reads snake_case; see cryohealth handoff. Not touched here.
 
 ## Next action
-gh pr view 20 --repo uExel/CryoHealth-api
+Open the PR: `gh pr create --repo uExel/CryoHealth-api --base main --head fix/issue-30-lake-alerts-include-status`
 
 ## Open questions for a human
-- On a tier change, should the previous tier's active alert auto-clear? — blocking: no
-- Should Shishper's `currentTier` be reset to match geo's CRITICAL? — blocking: no (but safety-relevant)
-- Should admin alert edit (PUT) require a reason like `PATCH /alerts/:id` does? This ports the old dashboard behaviour, which audited without one. — blocking: no
+- Should the API return snake_case aliases from `GET /alerts` (like the lake query does) or should the website read camelCase? — blocking: no
 
 ## Failed approaches (do not retry)
-- Checking `result.identifiers.length === 0` after `.orIgnore()` — TypeORM always pushes one entry per value set; check `identifiers[0]?.id` instead.
-- Catching 23505 and then querying on the same transaction manager — Postgres has already aborted the transaction.
-- Reproducing by broadcasting on prod — `GET /alerts` is the public safety feed.
+- Pushing with a plain `git push`: this branch tracks `origin/main` (created with `git switch -c ... origin/main`); push with an explicit name and `-u`.
 
 ## Loops run
 - none
 
 ## Files touched
-src/alerts/alerts.controller.ts, src/alerts/alerts.service.ts, src/alerts/alerts.service.spec.ts, src/alerts/dto/issue-alert.dto.ts, src/alerts/dto/admin-alert.dto.ts (new), docs/ai/HANDOFF.md, docs/ai/sessions/2026-09-22-task19-shipped-handoff.md
+src/lakes/lakes.service.ts, src/lakes/lakes.service.spec.ts, docs/ai/HANDOFF.md, docs/ai/sessions/2026-09-27-alert-broadcast-fix-handoff.md
 
 ## Verification status
-tests: 45/45 (the two dedupe tests fail on the old code)  tsc: clean  lint (src/alerts): clean  review: none  qa: n/a — no live DB test; Docker was not running
+tests: 46/46  tsc: clean  lint (2 changed files): 0 errors  review: none  qa: ran the API against a local Postgres 18 (localhost only, never prod) with two seeded alerts (since deleted); `GET /lakes/<id>/detail` returned `status` and `cleared_at` (`cleared` + timestamp for the cleared row, `active` + null otherwise)
 
 ## Resume with
-/uexel:orient   (then: gh pr view 20 --repo uExel/CryoHealth-api)
+`git log --oneline origin/main..fix/issue-30-lake-alerts-include-status` then open the PR (see Next action)

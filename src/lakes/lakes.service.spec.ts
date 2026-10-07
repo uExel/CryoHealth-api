@@ -9,6 +9,7 @@ import { LakesService } from './lakes.service';
 describe('LakesService', () => {
   const lakesRepo = { findAndCount: jest.fn(), findOne: jest.fn() };
   const obsRepo = { findAndCount: jest.fn() };
+  const dataSource = { query: jest.fn(), transaction: jest.fn() };
   let service: LakesService;
 
   beforeEach(async () => {
@@ -17,10 +18,7 @@ describe('LakesService', () => {
         LakesService,
         { provide: getRepositoryToken(Lake), useValue: lakesRepo },
         { provide: getRepositoryToken(Observation), useValue: obsRepo },
-        {
-          provide: DataSource,
-          useValue: { query: jest.fn(), transaction: jest.fn() },
-        },
+        { provide: DataSource, useValue: dataSource },
       ],
     }).compile();
     service = mod.get(LakesService);
@@ -51,5 +49,26 @@ describe('LakesService', () => {
         take: 500,
       }),
     );
+  });
+
+  it('lake detail alerts expose status and cleared_at so cleared alerts can be told apart', async () => {
+    const alertRow = {
+      id: 'a-1',
+      title: 'Cleared',
+      tier: 'HIGH',
+      status: 'cleared',
+      cleared_at: '2026-10-01T00:00:00.000Z',
+    };
+    dataSource.query
+      .mockResolvedValueOnce([{ id: 'lake-1' }]) // lake
+      .mockResolvedValueOnce([]) // history
+      .mockResolvedValueOnce([alertRow]) // alerts
+      .mockResolvedValueOnce([]); // glaciers
+    const detail = await service.lakeDetail('lake-1');
+    const alertsSql = dataSource.query.mock.calls[2][0] as string;
+    expect(alertsSql).toContain('FROM alerts');
+    expect(alertsSql).toContain('status');
+    expect(alertsSql).toContain('"clearedAt" AS cleared_at');
+    expect(detail.alerts).toEqual([alertRow]);
   });
 });
