@@ -279,7 +279,15 @@ export class GlaciersService {
   async remove(id: string, reason: string, actorId: string) {
     return this.dataSource.transaction(async (manager) => {
       const repo = manager.getRepository(Glacier);
-      const glacier = await repo.findOne({ where: { id } });
+      // Lock the parent row first (SELECT ... FOR UPDATE). Inserting a
+      // glacier_observations row takes a FOR KEY SHARE lock on this row, which
+      // conflicts, so an observation can no longer commit between the count below
+      // and the delete (it would be silently CASCADE-deleted).
+      const glacier = await repo
+        .createQueryBuilder('glacier')
+        .setLock('pessimistic_write')
+        .where('glacier.id = :id', { id })
+        .getOne();
       if (!glacier) {
         throw new NotFoundException('Glacier not found');
       }
