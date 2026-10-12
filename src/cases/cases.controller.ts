@@ -16,6 +16,7 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { DeleteReasonDto } from '../common/dto/delete-reason.dto';
 import { JwtPayload } from '../common/types/jwt-payload.type';
 import { CasesService } from './cases.service';
+import { CreateCaseAdminDto } from './dto/create-case-admin.dto';
 import { CreateCaseDto } from './dto/create-case.dto';
 import { UpdateCaseAdminDto } from './dto/update-case-admin.dto';
 
@@ -53,6 +54,16 @@ export class CasesController {
     @Query('limit', new ParseIntPipe({ optional: true })) limit?: number,
   ) {
     return this.cases.listAdmin(limit || 200);
+  }
+
+  @Roles('cryohealth_admin')
+  @Post('admin/cases')
+  @ApiOperation({ summary: "Admin: Log a case on a CHW's behalf" })
+  createAdmin(
+    @Body() dto: CreateCaseAdminDto,
+    @Req() req: { user: JwtPayload },
+  ) {
+    return this.cases.createAdmin(dto, req.user.sub);
   }
 
   @Roles('cryohealth_admin')
