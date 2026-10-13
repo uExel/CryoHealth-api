@@ -206,7 +206,7 @@ export class LakesService {
       [id],
     );
     const alerts = await this.dataSource.query(
-      `SELECT id, title, upper(tier::text) AS tier, "createdAt" AS created_at, estimated_window FROM alerts WHERE "lakeId" = $1 ORDER BY "createdAt" DESC LIMIT 10`,
+      `SELECT id, title, upper(tier::text) AS tier, status, "clearedAt" AS cleared_at, "createdAt" AS created_at, estimated_window FROM alerts WHERE "lakeId" = $1 ORDER BY "createdAt" DESC LIMIT 10`,
       [id],
     );
     const glaciers = await this.dataSource.query(
