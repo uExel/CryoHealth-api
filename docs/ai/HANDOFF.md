@@ -2,7 +2,7 @@
 Session: issue-30-lake-alerts-status  Model: claude-sonnet-5-5  Branch: fix/issue-30-lake-alerts-include-status  Goal: none  Task: cryohealth#30 (API half; cleared alerts render as active)
 
 ## State
-One-line API change plus a test, on a new branch from `origin/main` (14636dd, includes merged PR #20). No PR is open and nothing is deployed. It is the API half of cryohealth#30: the website's lake page cannot tell cleared alerts from active ones because `GET /lakes/:id/detail` did not return alert `status`. Companion website branch: `fix/issue-30-cleared-alerts-look-active` in uExel/cryohealth.
+One-line API change plus a test, on a new branch from `origin/main` (14636dd, includes merged PR #20). PR #22 is open and nothing is deployed. It is the API half of cryohealth#30: the website's lake page cannot tell cleared alerts from active ones because `GET /lakes/:id/detail` did not return alert `status`. Companion website branch: `fix/issue-30-cleared-alerts-look-active` in uExel/cryohealth.
 
 ## Done this session
 - `src/lakes/lakes.service.ts` `lakeDetail()`: the alerts query now also selects `status` and `"clearedAt" AS cleared_at`. Column names were checked against the migrations.
@@ -17,7 +17,7 @@ One-line API change plus a test, on a new branch from `origin/main` (14636dd, in
 - The feed (`GET /alerts`) returns camelCase entity fields while the website reads snake_case; see cryohealth handoff. Not touched here.
 
 ## Next action
-Open the PR: `gh pr create --repo uExel/CryoHealth-api --base main --head fix/issue-30-lake-alerts-include-status`
+Review PR #22. Merge and deploy it together with, or before, website PR uExel/cryohealth#67; until it is deployed the website's lake page cannot show "Cleared". Expect a `docs/ai/HANDOFF.md` conflict with the other open API PRs (#24, #25); merge `main` into whichever merges later.
 
 ## Open questions for a human
 - Should the API return snake_case aliases from `GET /alerts` (like the lake query does) or should the website read camelCase? — blocking: no
@@ -35,4 +35,4 @@ src/lakes/lakes.service.ts, src/lakes/lakes.service.spec.ts, docs/ai/HANDOFF.md,
 tests: 46/46  tsc: clean  lint (2 changed files): 0 errors  review: none  qa: ran the API against a local Postgres 18 (localhost only, never prod) with two seeded alerts (since deleted); `GET /lakes/<id>/detail` returned `status` and `cleared_at` (`cleared` + timestamp for the cleared row, `active` + null otherwise)
 
 ## Resume with
-`git log --oneline origin/main..fix/issue-30-lake-alerts-include-status` then open the PR (see Next action)
+`git log --oneline origin/main..fix/issue-30-lake-alerts-include-status` to list the commits; the PR is #22 (see Next action)
