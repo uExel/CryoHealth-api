@@ -1,47 +1,38 @@
-# HANDOFF — CryoHealth-api — 2026-09-27 22:58 PKT
-Session: alert-broadcast-fix  Model: claude-opus-5-5  Branch: fix/alert-broadcast-and-admin-routes  Goal: none  Task: none (user bug report; PR #20)
+# HANDOFF — CryoHealth-api — 2026-10-14
+Session: issue-13-lake-score-and-cors  Model: claude-sonnet-5-5  Branch: fix/issue-13-lake-score-area-and-cors  Goal: none  Task: #13 (partial)
 
 ## State
-PR #20 open, not merged or deployed. It fixes three alert bugs that returned 500s:
-- invalid `windowStart` text caused a 500;
-- a duplicate manual issue ran a query inside an aborted transaction (25P02) and 500'd instead of returning 409;
-- the geo hazard-score dedupe path crashed: TypeORM 0.3.31 returns `identifiers = [undefined]`, not `[]`, when `ON CONFLICT DO NOTHING` skips a row, so `identifiers[0].id` threw.
-
-It also adds `PUT`/`PATCH`/`DELETE /admin/alerts/:id`, which the web dashboard calls but the API never had (they were lost in cryohealth `20da49a`). Until #20 deploys, the admin portal's alert broadcast, edit, clear and delete keep failing in prod. Companion dashboard PR: uExel/cryohealth#57.
+PR #26 open, not merged. It fixes the parts of #13 that need no new data. It does NOT close #13 — population and confidence are still open, so the PR says `Refs #13`.
 
 ## Done this session
-- Fixed manual/geo alert insert dedupe; `IssueAlertDto` gains `@IsDateString` windows and free-text `estimatedWindow` (commit de3b6c1)
-- Added admin alert edit/clear/delete routes with audited reasons; delete returns 409 with `dependents` when acknowledgements exist (commit de3b6c1)
-- Opened PR #20
+- CORS: `main.ts` treated `CORS_ORIGINS` (a plain comma-separated string) as a list, so both if/else branches returned the same hardcoded origins. It now parses the variable via `src/config/cors.ts`. Default is unchanged (`localhost:8080`, `cryohealth.io`). Note the env var here is `CORS_ORIGINS`, not `CORS_ALLOWED_ORIGINS` as the #13 comment says.
+- `GET /lakes` and `GET /lakes/:id` now return `currentScore` ({score, tier, computedAt}) and `currentArea` ({areaKm2, capturedAt}) from the newest `hazard_scores` / `observations` rows, or null. The `currentScore` join described in the 2026-08-04 comment on #13 was not on `main`.
+- `lakes.current_risk_score` and `lakes.downstream_population` are `NOT NULL DEFAULT 0` and nothing writes them, so every lake read as 0 risk / 0 people. `/lakes`, `/lakes/:id`, `/lakes/:id/detail`, `/hot-lakes` and `/lakes-admin` now return the latest real score or null, and null for population while it is the default 0.
+- New migration `1790100000000-DropInventedRiskScoreConfidence`: `lake_risk_scores.confidence` loses its invented `DEFAULT 0.8` and `NOT NULL`. Existing rows untouched; `down` restores the old default.
 
 ## Not done / deferred
-- Tier-change policy — needs a human decision, not a code fix. Neither geo nor manual issuing clears the previous tier's active alert, and prod has 3 lakes with multiple active alerts (Shishper, Batura, Khurdopin).
-- Shishper `currentTier` is wrong: it shows `watch` because of a manual "test" WATCH alert from 2026-09-07, while geo has an active CRITICAL. Deleting or clearing the alert does not restore `currentTier`.
-- The "test" alert is live on the public feed. User wants it deleted; that needs #20 deployed first.
-- Local `main` has an unpushed docs commit `8b9bab6` (pool-exhaustion handoff). It was left off this branch on purpose, and its session archive file is byte-identical to this branch's.
-- Uncommitted user edits in `src/cases/cases.service.spec.ts` and `src/lakes/lakes.service.spec.ts` are left untouched.
+- Downstream population still has no flow-path source. CryoHealth-geo already stores a real WorldPop 5 km square-buffer count in `hazard_scores.components.exposure.population_within_buffer` (approximate, not flow-routed). Option: expose it as a clearly labelled estimate field, not as `downstreamPopulation`.
+- Per-score confidence: nothing in geo produces one. Option: expose input coverage (share of weighted signals that had real data) under its own name, not as `confidence`.
+- The new SQL and the migration were only tested with mocked tests; no Postgres/Docker on this machine.
 
 ## Next action
-gh pr view 20 --repo uExel/CryoHealth-api
+gh pr view 26 --repo uExel/CryoHealth-api
 
 ## Open questions for a human
-- On a tier change, should the previous tier's active alert auto-clear? — blocking: no
-- Should Shishper's `currentTier` be reset to match geo's CRITICAL? — blocking: no (but safety-relevant)
-- Should admin alert edit (PUT) require a reason like `PATCH /alerts/:id` does? This ports the old dashboard behaviour, which audited without one. — blocking: no
+- Add the labelled population estimate and an `inputCoverage` field to #26, or leave them for a follow-up? — blocking: no
+- After merge, retitle #13 to "Downstream population and per-score confidence" or split the rest into a new issue? — blocking: no
 
 ## Failed approaches (do not retry)
-- Checking `result.identifiers.length === 0` after `.orIgnore()` — TypeORM always pushes one entry per value set; check `identifiers[0]?.id` instead.
-- Catching 23505 and then querying on the same transaction manager — Postgres has already aborted the transaction.
-- Reproducing by broadcasting on prod — `GET /alerts` is the public safety feed.
+- none
 
 ## Loops run
 - none
 
 ## Files touched
-src/alerts/alerts.controller.ts, src/alerts/alerts.service.ts, src/alerts/alerts.service.spec.ts, src/alerts/dto/issue-alert.dto.ts, src/alerts/dto/admin-alert.dto.ts (new), docs/ai/HANDOFF.md, docs/ai/sessions/2026-09-22-task19-shipped-handoff.md
+src/main.ts, src/config/cors.ts (new), src/config/cors.spec.ts (new), src/config/configuration.ts, src/config/validation.schema.ts, .env.example, src/lakes/lakes.service.ts, src/lakes/lakes.service.spec.ts, src/database/migrations/1790100000000-DropInventedRiskScoreConfidence.ts (new), docs/ai/HANDOFF.md, docs/ai/sessions/2026-09-27-alert-broadcast-handoff.md (new)
 
 ## Verification status
-tests: 45/45 (the two dedupe tests fail on the old code)  tsc: clean  lint (src/alerts): clean  review: none  qa: n/a — no live DB test; Docker was not running
+tests: 54/54  tsc: clean  lint (changed files): clean  review: none  qa: n/a — no live DB test; Docker not available
 
 ## Resume with
-/uexel:orient   (then: gh pr view 20 --repo uExel/CryoHealth-api)
+/uexel:orient   (then: gh pr view 26 --repo uExel/CryoHealth-api)
