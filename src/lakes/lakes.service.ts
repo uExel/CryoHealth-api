@@ -14,6 +14,17 @@ const MAX_PAGE = 100;
 const ADMIN_LIMIT = 200;
 const HAZARD_SCORES_LIMIT = 120;
 
+/**
+ * lakes.current_risk_score and lakes.downstream_population are NOT NULL DEFAULT 0
+ * and nothing keeps them up to date, so a 0 there means "no data", not "no risk".
+ * These two fragments give the real value or NULL instead. `alias` is the lakes table
+ * alias used in the query.
+ */
+const latestScoreSql = (alias: string) =>
+  `(SELECT h.score FROM hazard_scores h WHERE h."lakeId" = ${alias}.id ORDER BY h."computedAt" DESC LIMIT 1)`;
+const knownPopulationSql = (alias: string) =>
+  `NULLIF(${alias}.downstream_population, 0)`;
+
 export interface HotLakeRow {
   id: string;
   name: string;
@@ -228,13 +239,19 @@ export class LakesService {
       const currentArea: CurrentArea | null = a
         ? { areaKm2: Number(a.areaKm2), capturedAt: a.capturedAt }
         : null;
-      return { ...lake, currentScore, currentArea };
+      return {
+        ...lake,
+        currentScore,
+        currentArea,
+        currentRiskScore: currentScore?.score ?? null,
+        downstreamPopulation: lake.downstreamPopulation || null,
+      };
     });
   }
 
   async listHotLakes(): Promise<HotLakeRow[]> {
     return await this.dataSource.query(
-      `SELECT id, name, upper("currentTier"::text) AS current_tier, current_risk_score, downstream_population, "updatedAt" AS last_updated FROM lakes WHERE "currentTier" IN ('high', 'critical') ORDER BY current_risk_score DESC NULLS LAST`,
+      `SELECT l.id, l.name, upper(l."currentTier"::text) AS current_tier, ${latestScoreSql('l')} AS current_risk_score, ${knownPopulationSql('l')} AS downstream_population, l."updatedAt" AS last_updated FROM lakes l WHERE l."currentTier" IN ('high', 'critical') ORDER BY current_risk_score DESC NULLS LAST`,
     );
   }
 
@@ -258,7 +275,7 @@ export class LakesService {
 
   async lakeDetail(id: string) {
     const lakeRows = await this.dataSource.query(
-      `SELECT l.*, ST_Y(l.geom::geometry) AS lat, ST_X(l.geom::geometry) AS lng, upper(l."currentTier"::text) AS current_tier, l."elevationM" AS elevation_m, d.name AS district_name FROM lakes l LEFT JOIN districts d ON d.id = l.district_id WHERE l.id = $1 LIMIT 1`,
+      `SELECT l.*, ${latestScoreSql('l')} AS current_risk_score, ${knownPopulationSql('l')} AS downstream_population, ST_Y(l.geom::geometry) AS lat, ST_X(l.geom::geometry) AS lng, upper(l."currentTier"::text) AS current_tier, l."elevationM" AS elevation_m, d.name AS district_name FROM lakes l LEFT JOIN districts d ON d.id = l.district_id WHERE l.id = $1 LIMIT 1`,
       [id],
     );
     const history = await this.dataSource.query(
@@ -302,7 +319,7 @@ export class LakesService {
   async listAdmin() {
     const [rows, countRows] = await Promise.all([
       this.dataSource.query(
-        `SELECT l.id, l.name, ST_Y(l.geom::geometry) AS lat, ST_X(l.geom::geometry) AS lng, upper(l."currentTier"::text) AS current_tier, l.current_risk_score, l.downstream_population, l."updatedAt" AS last_updated, l.district_id FROM lakes l ORDER BY l.current_risk_score DESC NULLS LAST LIMIT $1`,
+        `SELECT l.id, l.name, ST_Y(l.geom::geometry) AS lat, ST_X(l.geom::geometry) AS lng, upper(l."currentTier"::text) AS current_tier, ${latestScoreSql('l')} AS current_risk_score, ${knownPopulationSql('l')} AS downstream_population, l."updatedAt" AS last_updated, l.district_id FROM lakes l ORDER BY current_risk_score DESC NULLS LAST LIMIT $1`,
         [ADMIN_LIMIT],
       ),
       this.dataSource.query(`SELECT count(*)::int AS count FROM lakes`),

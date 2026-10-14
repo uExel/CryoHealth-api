@@ -113,4 +113,56 @@ describe('LakesService', () => {
       expect(dataSource.query).not.toHaveBeenCalled();
     });
   });
+
+  describe('placeholder zeros', () => {
+    it('reports risk score and population as null when nothing real is known', async () => {
+      lakesRepo.findAndCount.mockResolvedValue([
+        [{ id: 'lake-1', currentRiskScore: 0, downstreamPopulation: 0 }],
+        1,
+      ]);
+      dataSource.query.mockResolvedValue([]);
+
+      const { items } = await service.list();
+
+      expect(items[0].currentRiskScore).toBeNull();
+      expect(items[0].downstreamPopulation).toBeNull();
+    });
+
+    it('uses the latest hazard score as the risk score and keeps a real population', async () => {
+      lakesRepo.findAndCount.mockResolvedValue([
+        [{ id: 'lake-1', currentRiskScore: 0, downstreamPopulation: 1200 }],
+        1,
+      ]);
+      dataSource.query
+        .mockResolvedValueOnce([
+          {
+            lakeId: 'lake-1',
+            score: '0.81',
+            tier: 'high',
+            computedAt: new Date(),
+          },
+        ])
+        .mockResolvedValueOnce([]);
+
+      const { items } = await service.list();
+
+      expect(items[0].currentRiskScore).toBe(0.81);
+      expect(items[0].downstreamPopulation).toBe(1200);
+    });
+
+    it('hot-lakes and the admin list read the latest score, not the stored column', async () => {
+      dataSource.query.mockResolvedValue([]);
+
+      await service.listHotLakes();
+      await service.listAdmin();
+
+      const sql = dataSource.query.mock.calls.map((c) => String(c[0]));
+      const scored = sql.filter((q) => q.includes('FROM lakes l'));
+      expect(scored).toHaveLength(2);
+      for (const q of scored) {
+        expect(q).toContain('FROM hazard_scores h');
+        expect(q).toContain('NULLIF(l.downstream_population, 0)');
+      }
+    });
+  });
 });
