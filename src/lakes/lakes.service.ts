@@ -136,6 +136,30 @@ export interface DepsCountRow {
   n: number;
 }
 
+export interface LatestScoreRow {
+  lakeId: string;
+  score: string;
+  tier: string;
+  computedAt: Date;
+}
+
+export interface LatestAreaRow {
+  lakeId: string;
+  areaKm2: string;
+  capturedAt: Date;
+}
+
+export interface CurrentScore {
+  score: number;
+  tier: string;
+  computedAt: Date;
+}
+
+export interface CurrentArea {
+  areaKm2: number;
+  capturedAt: Date;
+}
+
 @Injectable()
 export class LakesService {
   constructor(
@@ -165,12 +189,47 @@ export class LakesService {
 
   async list(page = 1, pageSize = 50) {
     const take = Math.min(pageSize, MAX_PAGE);
-    const [items, total] = await this.lakes.findAndCount({
+    const [lakes, total] = await this.lakes.findAndCount({
       order: { name: 'ASC' },
       skip: (page - 1) * take,
       take,
     });
+    const items = await this.withLatestReadings(lakes);
     return { items, total, page, pageSize: take };
+  }
+
+  /**
+   * Adds currentScore and currentArea to each lake. They come from the newest
+   * HazardScore and Observation rows, so those tables stay the single source of
+   * truth. A lake with no score or no scene yet gets null, never a made-up value.
+   */
+  private async withLatestReadings(lakes: Lake[]) {
+    if (lakes.length === 0) return [];
+    const ids = lakes.map((l) => l.id);
+    const [scoreRows, areaRows] = await Promise.all([
+      this.dataSource.query(
+        `SELECT DISTINCT ON ("lakeId") "lakeId", score, tier, "computedAt" FROM hazard_scores WHERE "lakeId" = ANY($1) ORDER BY "lakeId", "computedAt" DESC`,
+        [ids],
+      ) as Promise<LatestScoreRow[]>,
+      this.dataSource.query(
+        `SELECT DISTINCT ON ("lakeId") "lakeId", "areaKm2", "capturedAt" FROM observations WHERE "lakeId" = ANY($1) ORDER BY "lakeId", "capturedAt" DESC`,
+        [ids],
+      ) as Promise<LatestAreaRow[]>,
+    ]);
+    const scores = new Map(scoreRows.map((r) => [r.lakeId, r]));
+    const areas = new Map(areaRows.map((r) => [r.lakeId, r]));
+
+    return lakes.map((lake) => {
+      const s = scores.get(lake.id);
+      const a = areas.get(lake.id);
+      const currentScore: CurrentScore | null = s
+        ? { score: Number(s.score), tier: s.tier, computedAt: s.computedAt }
+        : null;
+      const currentArea: CurrentArea | null = a
+        ? { areaKm2: Number(a.areaKm2), capturedAt: a.capturedAt }
+        : null;
+      return { ...lake, currentScore, currentArea };
+    });
   }
 
   async listHotLakes(): Promise<HotLakeRow[]> {
@@ -182,7 +241,8 @@ export class LakesService {
   async byId(id: string) {
     const lake = await this.lakes.findOne({ where: { id } });
     if (!lake) throw new NotFoundException('No such lake');
-    return lake;
+    const [withReadings] = await this.withLatestReadings([lake]);
+    return withReadings;
   }
 
   async listObservations(lakeId: string, page = 1, pageSize = 100) {

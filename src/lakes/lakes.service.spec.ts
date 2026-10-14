@@ -9,18 +9,17 @@ import { LakesService } from './lakes.service';
 describe('LakesService', () => {
   const lakesRepo = { findAndCount: jest.fn(), findOne: jest.fn() };
   const obsRepo = { findAndCount: jest.fn() };
+  const dataSource = { query: jest.fn(), transaction: jest.fn() };
   let service: LakesService;
 
   beforeEach(async () => {
+    jest.resetAllMocks();
     const mod = await Test.createTestingModule({
       providers: [
         LakesService,
         { provide: getRepositoryToken(Lake), useValue: lakesRepo },
         { provide: getRepositoryToken(Observation), useValue: obsRepo },
-        {
-          provide: DataSource,
-          useValue: { query: jest.fn(), transaction: jest.fn() },
-        },
+        { provide: DataSource, useValue: dataSource },
       ],
     }).compile();
     service = mod.get(LakesService);
@@ -51,5 +50,67 @@ describe('LakesService', () => {
         take: 500,
       }),
     );
+  });
+
+  describe('current score and area', () => {
+    const scored = { id: 'lake-1', name: 'Shishper' };
+    const unscored = { id: 'lake-2', name: 'Passu' };
+
+    it('adds the newest score and scene area to each lake', async () => {
+      lakesRepo.findAndCount.mockResolvedValue([[scored, unscored], 2]);
+      const computedAt = new Date('2026-09-01T00:00:00Z');
+      const capturedAt = new Date('2026-08-30T00:00:00Z');
+      dataSource.query
+        .mockResolvedValueOnce([
+          { lakeId: 'lake-1', score: '0.7250', tier: 'high', computedAt },
+        ])
+        .mockResolvedValueOnce([
+          { lakeId: 'lake-1', areaKm2: '1.250000', capturedAt },
+        ]);
+
+      const { items } = await service.list();
+
+      expect(items[0].currentScore).toEqual({
+        score: 0.725,
+        tier: 'high',
+        computedAt,
+      });
+      expect(items[0].currentArea).toEqual({ areaKm2: 1.25, capturedAt });
+    });
+
+    it('returns null, not zero, for a lake with no score or scene yet', async () => {
+      lakesRepo.findAndCount.mockResolvedValue([[scored, unscored], 2]);
+      dataSource.query
+        .mockResolvedValueOnce([
+          {
+            lakeId: 'lake-1',
+            score: '0.5',
+            tier: 'watch',
+            computedAt: new Date(),
+          },
+        ])
+        .mockResolvedValueOnce([]);
+
+      const { items } = await service.list();
+
+      expect(items[1].currentScore).toBeNull();
+      expect(items[1].currentArea).toBeNull();
+    });
+
+    it('adds the same fields on a single lake', async () => {
+      lakesRepo.findOne.mockResolvedValue(unscored);
+      dataSource.query.mockResolvedValue([]);
+
+      const lake = await service.byId('lake-2');
+
+      expect(lake.currentScore).toBeNull();
+      expect(lake.currentArea).toBeNull();
+    });
+
+    it('does not query the database for an empty page', async () => {
+      lakesRepo.findAndCount.mockResolvedValue([[], 0]);
+      await service.list();
+      expect(dataSource.query).not.toHaveBeenCalled();
+    });
   });
 });
