@@ -3,7 +3,7 @@
  *  TypeORM CLI entrypoint, which runs outside Nest's DI and so can't use ConfigService). */
 export default () => ({
   port: parseInt(process.env.PORT ?? '3000', 10),
-  corsOrigins: process.env.CORS_ORIGINS ?? 'http://localhost:8080',
+  corsOrigins: process.env.CORS_ORIGINS ?? 'http://localhost:8080,https://cryohealth.io',
   jwt: {
     secret: process.env.JWT_SECRET,
     expiresIn: process.env.JWT_EXPIRES ?? '12h',
