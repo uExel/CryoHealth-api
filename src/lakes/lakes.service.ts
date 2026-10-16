@@ -358,7 +358,7 @@ export class LakesService {
           dto.historicalGlof ?? false,
           dto.source,
           dto.sourceUrl ?? null,
-          dto.downstream_population ?? 0,
+          dto.downstream_population ?? null,
           dto.area_km2 ?? null,
           dto.slug,
           dto.lng,

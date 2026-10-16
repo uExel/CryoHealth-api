@@ -165,4 +165,49 @@ describe('LakesService', () => {
       }
     });
   });
+
+  describe('creating a lake without a population figure', () => {
+    const baseDto = {
+      name: 'Test Lake',
+      valley: 'Hunza',
+      district_id: 'district-1',
+      source: 'ICIMOD',
+      slug: 'test-lake',
+      lat: 36.1,
+      lng: 74.8,
+    };
+
+    /** Runs createLake against a fake transaction and returns the INSERT's params. */
+    async function createAndGetInsertParams(dto: Record<string, unknown>) {
+      const manager = {
+        query: jest
+          .fn()
+          .mockResolvedValueOnce([{ name: 'Gilgit' }])
+          .mockResolvedValueOnce([{ id: 'lake-new' }]),
+        getRepository: jest.fn().mockReturnValue({ insert: jest.fn() }),
+      };
+      dataSource.transaction.mockImplementation((cb: (m: unknown) => unknown) =>
+        cb(manager),
+      );
+      await service.createLake(dto, 'actor-1');
+      const insertCall = manager.query.mock.calls.find((c) =>
+        String(c[0]).startsWith('INSERT INTO lakes'),
+      );
+      return insertCall![1] as unknown[];
+    }
+
+    // $13 in the INSERT is downstream_population (index 12 in the params array).
+    it('stores null, not 0, when no population is given', async () => {
+      const params = await createAndGetInsertParams(baseDto);
+      expect(params[12]).toBeNull();
+    });
+
+    it('keeps a population figure that was given', async () => {
+      const params = await createAndGetInsertParams({
+        ...baseDto,
+        downstream_population: 4500,
+      });
+      expect(params[12]).toBe(4500);
+    });
+  });
 });
