@@ -3,13 +3,11 @@ import { Alert } from '../entities/alert.entity';
 export type AlertRecipient = {
   userId: string;
   name: string;
-  /** How to reach them on this channel — a phone number for push (device token lookup
-   *  happens downstream, not modeled yet), an email address for email, etc. */
+  /** Contact information used by this channel; FCM delivery uses push_devices tokens. */
   address: string;
 };
 
-/** One delivery channel. Multiple implementations fan out from the same alert —
- *  in-app is the DB row itself (GET /alerts), this interface is for push/email/etc. */
+/** Legacy recipient logging channel. Durable FCM jobs are queued separately per device. */
 export interface NotificationChannel {
   readonly kind: string;
   send(alert: Alert, recipients: AlertRecipient[]): Promise<void>;
