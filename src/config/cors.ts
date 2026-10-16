@@ -1,0 +1,7 @@
+/** Splits the comma-separated CORS_ORIGINS value into a clean list of origins. */
+export function parseCorsOrigins(value: string | undefined): string[] {
+  return (value ?? '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter((origin) => origin.length > 0);
+}
