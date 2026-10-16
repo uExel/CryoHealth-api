@@ -10,6 +10,7 @@ import { Alert } from './entities/alert.entity';
 import { User } from '../users/entities/user.entity';
 import { AlertsService } from './alerts.service';
 import { NOTIFICATION_CHANNELS } from './notifications/notification-channel';
+import { PushQueueService } from '../push/push-queue.service';
 
 describe('AlertsService', () => {
   const alertsRepo = {
@@ -22,6 +23,7 @@ describe('AlertsService', () => {
     kind: 'test',
     send: jest.fn().mockResolvedValue(undefined),
   };
+  const pushQueue = { enqueueAlert: jest.fn().mockResolvedValue(undefined) };
 
   // Mocks a transaction() call by handing the callback an EntityManager stand-in whose
   // getRepository() returns per-entity mocks the test configures via `managerRepos`.
@@ -55,6 +57,7 @@ describe('AlertsService', () => {
         { provide: getRepositoryToken(User), useValue: usersRepo },
         { provide: DataSource, useValue: dataSource },
         { provide: NOTIFICATION_CHANNELS, useValue: [channel] },
+        { provide: PushQueueService, useValue: pushQueue },
       ],
     }).compile();
     service = mod.get(AlertsService);
@@ -157,6 +160,10 @@ describe('AlertsService', () => {
         currentTier: 'high',
       });
       expect(channel.send).toHaveBeenCalled();
+      expect(pushQueue.enqueueAlert).toHaveBeenCalledWith(
+        expect.anything(),
+        'alert-1',
+      );
     });
 
     it('dedupes without creating a second alert when one is already active for that tier', async () => {
@@ -178,6 +185,7 @@ describe('AlertsService', () => {
       expect(result.alert?.id).toBe('existing-alert');
       expect(lakeRepo.update).not.toHaveBeenCalled();
       expect(channel.send).not.toHaveBeenCalled();
+      expect(pushQueue.enqueueAlert).not.toHaveBeenCalled();
     });
 
     it('404s an unknown lake', async () => {

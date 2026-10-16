@@ -21,6 +21,7 @@ import {
   NOTIFICATION_CHANNELS,
   NotificationChannel,
 } from './notifications/notification-channel';
+import { PushQueueService } from '../push/push-queue.service';
 
 const MAX_PAGE = 100;
 const POSTGRES_UNIQUE_VIOLATION = '23505';
@@ -39,6 +40,7 @@ export class AlertsService {
     private readonly dataSource: DataSource,
     @Inject(NOTIFICATION_CHANNELS)
     private readonly channels: NotificationChannel[],
+    private readonly pushQueue: PushQueueService,
   ) {}
 
   async recipientsFor(lakeId: string): Promise<AlertRecipient[]> {
@@ -95,6 +97,7 @@ export class AlertsService {
 
       if (!deduped) {
         await lakeRepo.update(lake.id, { currentTier: dto.tier });
+        await this.pushQueue.enqueueAlert(manager, alert!.id);
         await this.notify(alert!, lake.id);
       }
       return { alert, deduped };
@@ -129,6 +132,7 @@ export class AlertsService {
           .update(dto.lakeId, { currentTier: dto.tier });
       }
       await this.audit(manager, actorId, 'alert.issue', alert!.id, dto.reason);
+      await this.pushQueue.enqueueAlert(manager, alert!.id);
       await this.notify(alert!, dto.lakeId);
       return alert!;
     });
