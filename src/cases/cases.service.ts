@@ -1,9 +1,14 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository } from 'typeorm';
 import { AuditEntry } from '../alerts/entities/audit-entry.entity';
 import { ChwCase } from './entities/chw-case.entity';
 import { CreateCaseDto } from './dto/create-case.dto';
+import { CreateCaseAdminDto } from './dto/create-case-admin.dto';
 import { UpdateCaseAdminDto } from './dto/update-case-admin.dto';
 
 const MAX_PAGE = 100;
@@ -147,6 +152,57 @@ export class CasesService {
       total,
       hasMore: total > rows.length,
     };
+  }
+
+  /** Admin portal "Log a case": an admin records a case on behalf of a CHW. */
+  async createAdmin(dto: CreateCaseAdminDto, actorId: string) {
+    return this.dataSource.transaction(async (manager) => {
+      const chw = await manager.query(
+        `SELECT id FROM users WHERE id = $1 AND role = 'chw'`,
+        [dto.chw_id],
+      );
+      if (!chw[0]) {
+        throw new BadRequestException(
+          'chw_id must reference an existing CHW user',
+        );
+      }
+      if (dto.district_id) {
+        const district = await manager.query(
+          `SELECT id FROM districts WHERE id = $1`,
+          [dto.district_id],
+        );
+        if (!district[0]) {
+          throw new BadRequestException(
+            'district_id does not reference an existing district',
+          );
+        }
+      }
+
+      const rows = await manager.query(
+        `INSERT INTO cases (chw_id, district_id, patient_age, patient_sex, symptoms, diagnosis, treatment, outcome, is_disaster_related)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+         RETURNING id, chw_id, district_id, patient_age, patient_sex, symptoms, diagnosis, treatment, outcome, is_disaster_related, created_at, deleted_at`,
+        [
+          dto.chw_id,
+          dto.district_id ?? null,
+          dto.patient_age ?? null,
+          dto.patient_sex ?? null,
+          dto.symptoms,
+          dto.diagnosis ?? null,
+          dto.treatment ?? null,
+          dto.outcome ?? null,
+          dto.is_disaster_related ?? false,
+        ],
+      );
+      const created = rows[0];
+
+      // Ids only: the clinical text stays out of the audit trail.
+      await this.audit(manager, actorId, 'case.create', created.id, undefined, {
+        created: { chw_id: dto.chw_id, district_id: dto.district_id ?? null },
+      });
+
+      return { case: created };
+    });
   }
 
   async updateAdmin(id: string, dto: UpdateCaseAdminDto, actorId: string) {
