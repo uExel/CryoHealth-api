@@ -18,6 +18,7 @@ Each session's full handoff (what was done, how it was checked, what is left) is
 ## Done this session
 - Merged `main` into #22, #24, #25 and #26 and resolved the only conflict, `docs/ai/HANDOFF.md`. No code conflicted.
 - Re-ran `tsc --noEmit` and `jest` on each branch after the merge: #22 56/56, #24 64/64, #25 62/62, #26 68/68 tests; `tsc` clean on all four.
+- Found a second, non-docs collision: #22 and #26 both append a new test at the end of `src/lakes/lakes.service.spec.ts`. Moved #22's one test up the file (unchanged, only its position) so the two edit different places. All 24 possible merge orders of the four PRs now merge into `main` with no conflict, and the four combined pass `tsc` and 85/85 tests.
 - Saved every session's handoff and the push-notifications handoff as separate files under `docs/ai/sessions/` so nothing was lost.
 
 ## Not done / deferred
@@ -45,10 +46,10 @@ Git only reports a conflict when two branches change the same lines in different
 - none
 
 ## Files touched
-docs/ai/HANDOFF.md, docs/ai/sessions/2026-10-16-push-notifications-handoff.md, and one `docs/ai/sessions/*-handoff.md` per PR (named in the table above). No source files changed in this session.
+docs/ai/HANDOFF.md, docs/ai/sessions/2026-10-16-push-notifications-handoff.md, and one `docs/ai/sessions/*-handoff.md` per PR (named in the table above). The only non-doc change is #22's `src/lakes/lakes.service.spec.ts`, where a test moved position; no production code changed.
 
 ## Verification status
-tests: #22 56/56, #24 64/64, #25 62/62, #26 68/68 (each with `main` merged in)  tsc: clean on all four  lint: not run on this change (docs only)  review: none  qa: n/a — no code changed
+tests: #22 56/56, #24 64/64, #25 62/62, #26 68/68 (each with `main` merged in)  tsc: clean on all four  lint: not run on this change (docs only)  review: none  qa: n/a — no production code changed
 
 ## Resume with
 /uexel:orient   (then: gh pr list --repo uExel/CryoHealth-api --state open)
