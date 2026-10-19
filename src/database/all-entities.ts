@@ -20,6 +20,8 @@ import { Glacier } from '../glaciers/entities/glacier.entity';
 import { GlacierObservation } from '../glaciers/entities/glacier-observation.entity';
 import { Protocol } from '../protocols/entities/protocol.entity';
 import { ChwProfile } from '../chw-profiles/entities/chw-profile.entity';
+import { PushDevice } from '../push/entities/push-device.entity';
+import { PushDelivery } from '../push/entities/push-delivery.entity';
 
 export const entities = [
   Lake,
@@ -36,4 +38,6 @@ export const entities = [
   GlacierObservation,
   Protocol,
   ChwProfile,
+  PushDevice,
+  PushDelivery,
 ];
