@@ -1,48 +1,54 @@
-# HANDOFF — CryoHealth-api — 2026-10-12
-Session: issue-3-admin-create-case  Model: claude-sonnet-5-5  Branch: feat/admin-create-case  Goal: none  Task: add `POST /admin/cases` so the admin portal's "Log a case" form works (cryohealth#3)
+# HANDOFF — CryoHealth-api — 2026-10-18
+Session: open-api-prs-handoff-consolidation  Model: claude-sonnet-5-5  Branch: (shared by PRs #22, #24, #25, #26)  Goal: none  Task: land the four open API PRs without `HANDOFF.md` conflicts
 
 ## State
-A new endpoint with tests, cut from `origin/main` (14636dd). A pull request is open for it; nothing is merged or deployed.
+`main` is at 529129d and already includes PR #27 (FCM push notifications). Four more API PRs are open against it. None is merged or deployed. This file is identical on all four branches on purpose, so they can be merged in any order without conflicting on it (see "Why this file looks the same on every branch").
 
-The admin portal has a "New case" button on the Cases page. Its form posts to `POST /admin/cases`, but this API had no such route, so every attempt ended in `404 Cannot POST /admin/cases` and the case was never saved. The only existing way to create a case is `POST /cases`, which is for a CHW's phone (it needs `clientCaseId`, `payload`, `deviceId`) and is limited to the `chw` role. The goal for the admin portal (cryohealth#3, success metric 2) says an admin must be able to create a record in every full-CRUD domain, cases included.
+| PR | Branch | What it does | Session note |
+|---|---|---|---|
+| #22 | `fix/issue-30-lake-alerts-include-status` | `GET /lakes/:id/detail` also returns alert `status` and `cleared_at` (API half of cryohealth#30) | `sessions/2026-10-07-issue-30-lake-alerts-status-handoff.md` |
+| #24 | `fix/issue-34-delete-guards-lock` | Delete of a district or glacier locks the parent row before counting dependents; district delete refuses with 409 while rows still point at it (cryohealth#34) | `sessions/2026-10-12-issue-34-delete-guards-lock-handoff.md` |
+| #25 | `feat/admin-create-case` | `POST /admin/cases` so the admin portal's "Log a case" form works (cryohealth#3) | `sessions/2026-10-12-issue-3-admin-create-case-handoff.md` |
+| #26 | `fix/issue-13-lake-score-area-and-cors` | `CORS_ORIGINS` is read, `/lakes` returns the real latest score/area, no more fake `0` for risk score or downstream population (#13, partial) | `sessions/2026-10-14-issue-13-lake-score-and-cors-handoff.md` |
 
-## What I did
-- `src/cases/dto/create-case-admin.dto.ts` (new): the fields the form sends. `chw_id` (uuid) and `symptoms` are required; `district_id`, `patient_age` (0 to 130), `patient_sex`, `diagnosis`, `treatment`, `outcome` and `is_disaster_related` are optional.
-- `src/cases/cases.service.ts`: `createAdmin()`. In one transaction it checks that `chw_id` is an existing user with role `chw` and that `district_id` (if given) exists, and answers `400` with a clear message if not; then inserts into `cases` and writes an audit row (`case.create`, the actor, the case id). The audit row carries ids only, not the symptoms or other clinical text. It returns `{ case: <row> }`, which is the shape the website already reads.
-- `src/cases/cases.controller.ts`: `POST /admin/cases`, `@Roles('cryohealth_admin')`, like the other admin case routes.
-- `src/cases/cases.service.admin-create.spec.ts` (new, 7 tests): the insert and its defaults, every field passed through, audit with ids only, rejects a non-CHW or unknown `chw_id`, rejects an unknown `district_id`, no district lookup when none is given, and the route is limited to `cryohealth_admin`.
-- Archived the previous handoff to `docs/ai/sessions/2026-09-27-alert-broadcast-fix-handoff.md` (the same file the other open API PRs add, so it merges cleanly).
+Two more PRs are open from another author and are not covered here: #21 (protocol step validation) and #23 (glacier RGI seed). Both also rewrite `HANDOFF.md`, and #23 also conflicts in `package.json`.
 
-The website needs no change: the form already posts exactly this.
+Each session's full handoff (what was done, how it was checked, what is left) is kept unedited in the file named in the table. The handoff of the push-notifications session that was on `main` before this one is `sessions/2026-10-16-push-notifications-handoff.md`.
 
-## How I checked it
-Tests 52/52 (45 existing + 7 new), `nest build` passes, eslint on the changed files has 0 errors. Then I ran the API against a throwaway local database (never the existing dev database; dropped afterwards) and the website's real "Log a case" form in headless Chrome:
-- Form: pick a CHW, type symptoms and an age, press "Log case". Result: `POST /admin/cases` 201, and after a reload the row is in the Cases table with the CHW's name.
-- API: a valid case returns 201 and `{ case }`, and shows up in `GET /admin/cases`. Missing or empty symptoms, a `chw_id` that is not a UUID, belongs to a non-CHW user, or does not exist, an unknown `district_id`, and an age of 200 all return 400 and insert nothing. `facility_admin` and `chw` get 403; no token gets 401.
-- The audit table has one `case.create` row with the actor and the ids, and no symptom text.
+## Done this session
+- Merged `main` into #22, #24, #25 and #26 and resolved the only conflict, `docs/ai/HANDOFF.md`. No code conflicted.
+- Re-ran `tsc --noEmit` and `jest` on each branch after the merge: #22 56/56, #24 64/64, #25 62/62, #26 68/68 tests; `tsc` clean on all four.
+- Saved every session's handoff and the push-notifications handoff as separate files under `docs/ai/sessions/` so nothing was lost.
 
-## Not done / things to know
-- Only `cryohealth_admin` may use it. `facility_admin` gets 403, the same as every other write on cases today; whether that is right is a decision for a human (see the website handoff for #3).
-- A case can be logged for a deactivated CHW. I did not require the CHW to be active, because an admin may be recording a past case.
-- While in this file I noticed `removeAdmin()` runs its UPDATE through `this.dataSource.query` instead of the transaction's `manager`, so the delete and its audit row are not in one transaction. Not changed here.
+## Not done / deferred
+- **Before deploying `main` (PR #27):** the server's `/opt/cryohealth/.env` needs `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL` and `FIREBASE_PRIVATE_KEY`, and `docker-compose.prod.yml` (not in the repo) must load it with `env_file:`. Production refuses to boot without all three. This was marked blocking in the push session and is still unconfirmed.
+- Migrations were only exercised by mocked tests locally on #26 (`...DropInventedRiskScoreConfidence`, `...MakeLakeDownstreamPopulationNullable`). CI runs `npm run migration:run` against Postgres on every PR, which covers them; still check `/lakes` and `/hot-lakes` on a dev database.
+- #26 does not close #13: downstream population needs a real source and per-score confidence does not exist yet.
+- PRs #21 and #23 are not updated; each needs `main` merged in and its own `HANDOFF.md` resolved (see below).
+- The cause of the conflicts is the CI check, not these branches (see Open questions).
 
 ## Next action
-Someone with merge rights reviews and merges this PR; the author is not merging it. Once the two checks (`test`, `handoff-fresh`) are green it is ready. No migration is needed. This file will conflict with the other open API PRs (#21 to #24) that also rewrite it, and that is the only conflict.
+Review and merge #22, #24, #25 and #26 in any order. After the first one merges, GitHub should show the others as mergeable (a "Update branch" button may appear but is not needed for this file).
 
 ## Open questions for a human
-- Should `facility_admin` also be allowed to log cases? — blocking: no
+- The `uexel-handoff-check` workflow fails any PR that does not change `docs/ai/HANDOFF.md`, so every parallel PR rewrites the same single-state file and they all conflict. Should the check also accept a new file under `docs/ai/sessions/` as proof of a handoff, and `HANDOFF.md` be refreshed on `main` only? The workflow is copied in by `bin/uexel-onboard` from uExel/cryo-harness, so the real fix belongs there. — blocking: no
+
+## Why this file looks the same on every branch
+Git only reports a conflict when two branches change the same lines in different ways. If both sides make the identical change, the merge is clean. So the four branches carry exactly this text, and each session's own handoff lives in its own, uniquely named file under `docs/ai/sessions/` (a new file with a new name can never conflict). When you add a session of your own, add a new file there; only touch this file when the branch you are on is the only one open.
 
 ## Failed approaches (do not retry)
+- Resolving each PR's `HANDOFF.md` separately by keeping that PR's own text: it works for one merge, but after the first PR lands every other PR conflicts again.
 - `npm run lint` runs with `--fix` and rewrites files; run `npx eslint <files>` on the files you changed instead.
+- Git Bash turns `git show origin/main:path` into a Windows path list; set `MSYS_NO_PATHCONV=1` first.
 
 ## Loops run
 - none
 
 ## Files touched
-src/cases/dto/create-case-admin.dto.ts, src/cases/cases.service.ts, src/cases/cases.controller.ts, src/cases/cases.service.admin-create.spec.ts, docs/ai/HANDOFF.md, docs/ai/sessions/2026-09-27-alert-broadcast-fix-handoff.md
+docs/ai/HANDOFF.md, docs/ai/sessions/2026-10-16-push-notifications-handoff.md, and one `docs/ai/sessions/*-handoff.md` per PR (named in the table above). No source files changed in this session.
 
 ## Verification status
-tests: 52/52  build: pass  lint (changed files): 0 errors  real database + the website's form in headless Chrome: pass  review: none  qa: none beyond the above
+tests: #22 56/56, #24 64/64, #25 62/62, #26 68/68 (each with `main` merged in)  tsc: clean on all four  lint: not run on this change (docs only)  review: none  qa: n/a — no code changed
 
 ## Resume with
-`git log --oneline origin/main..feat/admin-create-case` then `gh pr list --repo uExel/CryoHealth-api --head feat/admin-create-case`
+/uexel:orient   (then: gh pr list --repo uExel/CryoHealth-api --state open)
