@@ -1,29 +1,42 @@
-# ADR 0003 — Notification delivery is a logged stub, not faked FCM/email
+# ADR 0003 — Alert push delivery uses Firebase and a durable device queue
+
+## Status
+
+Implemented for Android FCM. Email and iOS/APNs delivery are not configured.
 
 ## Context
-Task #8's acceptance criteria say alerts are "delivered in-app + FCM push + email." No
-FCM project, service account, or email provider (SES/SendGrid/etc.) exists anywhere in
-this project — not in `.env.example`, not in any config, not mentioned as arranged
-anywhere in the PRD's week-1/2 plan. cryohealth-app also has no device-token
-registration wired up yet (it's still on `src/lib/mock.ts`).
+
+Alerts were initially only written to the database and logged by
+`LogNotificationChannel`. That was an intentional stub while device registration and
+Firebase credentials were unavailable. The mobile app now registers guest-capable
+native FCM tokens, and the backend uses the Firebase Admin SDK.
 
 ## Decision
-Ship a real `NotificationChannel` interface with multi-channel fan-out, and exactly one
-implementation: `LogNotificationChannel`, which logs precisely who would have been
-notified and for what, rather than a class that claims to call Firebase/an email API
-with no credentials to actually do so. That would be undemonstrable code pretending to
-work — worse than admitting the gap.
 
-In-app delivery is real, not stubbed: `GET /alerts` is a genuine, live, paginated feed —
-that's the one channel this task fully delivers.
+- Keep push tokens in `push_devices`, independent of `users`, so guests can receive
+  every newly created alert.
+- Insert one `push_deliveries` row for each active device in the same database
+  transaction as the alert. This is the durable per-device outbox; alert commits do not
+  wait for Firebase.
+- A worker claims jobs with `FOR UPDATE SKIP LOCKED`, sends FCM multicast batches,
+  retries transient failures with capped exponential backoff, and disables invalid
+  tokens. Terminal outcomes and error codes remain inspectable in the database.
+- Only newly inserted alerts are broadcast. Dedupe prevents duplicate delivery jobs;
+  edits, overrides, and clears do not currently send push updates.
+- Store the Firebase Admin credential outside source control, as three environment
+  variables: `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL` and `FIREBASE_PRIVATE_KEY`
+  (newlines written as literal `\n`). The Android `google-services.json` is app/build
+  configuration, not the Admin credential.
+- Tapping a push fetches the alert from the public API, caches it, then opens its detail
+  screen. No change to the app's read-through database schema is needed.
 
 ## Consequences
-- Adding real FCM or email later is additive: implement `NotificationChannel`, add the
-  class to `AlertsModule`'s `NOTIFICATION_CHANNELS` provider array. `AlertsService`
-  never changes — it already fans out to every registered channel.
-- Recipient computation (`AlertsService.recipientsFor`) is real and tested — the gap is
-  purely the last-mile delivery mechanism, not who should be notified.
-- Verified live: a tier transition on Shishper correctly identified and logged its one
-  mapped CHW (Zainab Karim, via `Facility.lakeId` -> `User.facilityId`) by name on both
-  the initial alert and a subsequent override — the routing logic this task actually
-  owns works end to end; only the transport is stubbed.
+
+- Run the TypeORM migration before deploying the API and set the three `FIREBASE_*`
+  variables in the production `.env`; production refuses to boot without them.
+- Provide the Android Firebase config file to local and EAS builds; the package name
+  must match `com.uexel.cryohealth`.
+- iOS requires a Firebase iOS app plus APNs credentials before push delivery can be
+  relied on there.
+- Delivery is at-least-once: a worker crash after Firebase accepts a send but before
+  the database marks it sent can produce a duplicate notification.

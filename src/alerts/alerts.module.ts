@@ -9,11 +9,13 @@ import { AuditEntry } from './entities/audit-entry.entity';
 import { HazardScore } from './entities/hazard-score.entity';
 import { LogNotificationChannel } from './notifications/log-notification-channel';
 import { NOTIFICATION_CHANNELS } from './notifications/notification-channel';
+import { PushModule } from '../push/push.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Alert, HazardScore, AuditEntry, Facility]),
     UsersModule,
+    PushModule,
   ],
   controllers: [AlertsController],
   providers: [
