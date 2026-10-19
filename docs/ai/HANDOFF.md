@@ -1,55 +1,54 @@
-# HANDOFF — CryoHealth-api — 2026-10-12
-Session: issue-34-delete-guards-lock  Model: claude-sonnet-5-5  Branch: fix/issue-34-delete-guards-lock  Goal: none  Task: cryohealth#34 (deleting a district or a glacier could silently destroy data)
+# HANDOFF — CryoHealth-api — 2026-10-18
+Session: open-api-prs-handoff-consolidation  Model: claude-sonnet-5-5  Branch: (shared by PRs #22, #24, #25, #26)  Goal: none  Task: land the four open API PRs without `HANDOFF.md` conflicts
 
 ## State
-This branch fixes the problem described in cryohealth#34. It is cut from `origin/main` (14636dd), a pull request is open for it, and nothing is merged or deployed. The issue itself is filed on the website repo, but the delete code it talks about moved into this API a while ago, so the fix belongs here. The website needs no change: `admin.districts.tsx` already shows the list of blocking records when the API answers 409.
+`main` is at 529129d and already includes PR #27 (FCM push notifications). Four more API PRs are open against it. None is merged or deployed. This file is identical on all four branches on purpose, so they can be merged in any order without conflicting on it (see "Why this file looks the same on every branch").
 
-In plain words, two things were wrong on `main`:
-- **Deleting a glacier** counted its observations and then deleted it, with nothing stopping another admin from adding an observation in between. Observations are deleted together with their glacier, so that late observation would vanish without a trace.
-- **Deleting a district** had no safety check at all. Lakes, alerts, glaciers, CHW profiles and cases all point at a district, and deleting it just un-linked them silently. The website used to refuse this (it counted those five tables first); that check got lost when the database code moved into the API.
+| PR | Branch | What it does | Session note |
+|---|---|---|---|
+| #22 | `fix/issue-30-lake-alerts-include-status` | `GET /lakes/:id/detail` also returns alert `status` and `cleared_at` (API half of cryohealth#30) | `sessions/2026-10-07-issue-30-lake-alerts-status-handoff.md` |
+| #24 | `fix/issue-34-delete-guards-lock` | Delete of a district or glacier locks the parent row before counting dependents; district delete refuses with 409 while rows still point at it (cryohealth#34) | `sessions/2026-10-12-issue-34-delete-guards-lock-handoff.md` |
+| #25 | `feat/admin-create-case` | `POST /admin/cases` so the admin portal's "Log a case" form works (cryohealth#3) | `sessions/2026-10-12-issue-3-admin-create-case-handoff.md` |
+| #26 | `fix/issue-13-lake-score-area-and-cors` | `CORS_ORIGINS` is read, `/lakes` returns the real latest score/area, no more fake `0` for risk score or downstream population (#13, partial) | `sessions/2026-10-14-issue-13-lake-score-and-cors-handoff.md` |
 
-## What I did
-- `GlaciersService.remove()`: it now locks the glacier's row first, then counts the observations, then deletes. Adding an observation needs a share of that same row, so it either waits until the delete is finished or gets counted before the delete is allowed.
-- `DistrictsService.remove()`: same lock, plus the check that was lost. If any alert, case, CHW profile, glacier or lake still points at the district, the API answers 409 with the counts (same shape the glacier delete already used) and deletes nothing.
-- Added 9 unit tests (`districts.service.spec.ts`, `glaciers.service.spec.ts`). They check the order (lock, then count, then delete), the 409 with counts, the happy path with an audit row, and the 404. All 9 fail on the old code.
-- Moved the previous handoff to `docs/ai/sessions/2026-09-27-alert-broadcast-fix-handoff.md` (the same file the other open API PRs add, so it merges cleanly).
+Two more PRs are open from another author and are not covered here: #21 (protocol step validation) and #23 (glacier RGI seed). Both also rewrite `HANDOFF.md`, and #23 also conflicts in `package.json`.
 
-## How I checked it (this is the part to trust)
-Unit tests with mocks only show the order of calls, so I also ran the real services against a real database. I created a throwaway PostgreSQL database on the local server (never the existing `cryohealth` database), ran all the migrations in it, and used two separate connections: one holds an uncommitted insert of a dependent row while the other calls `remove()`. Then I did the same with the old code from `main`. Result:
+Each session's full handoff (what was done, how it was checked, what is left) is kept unedited in the file named in the table. The handoff of the push-notifications session that was on `main` before this one is `sessions/2026-10-16-push-notifications-handoff.md`.
 
-| Case | Old code (`main`) | This branch |
-|---|---|---|
-| Delete a glacier while an observation is being committed | glacier deleted, **the new observation was lost** | refused with 409 (`glacier_observations: 1`), nothing lost |
-| Same, but the other session rolls back | deleted | deleted (correct) |
-| Delete a district while a glacier is being attached to it | deleted, the glacier was **silently un-linked** | refused with 409 (`glaciers: 1`), glacier stays linked |
-| Delete a district that already has a glacier | deleted, glacier un-linked | refused with 409 |
-| Delete a district or glacier with nothing attached | deleted | deleted (correct) |
+## Done this session
+- Merged `main` into #22, #24, #25 and #26 and resolved the only conflict, `docs/ai/HANDOFF.md`. No code conflicted.
+- Re-ran `tsc --noEmit` and `jest` on each branch after the merge: #22 56/56, #24 64/64, #25 62/62, #26 68/68 tests; `tsc` clean on all four.
+- Saved every session's handoff and the push-notifications handoff as separate files under `docs/ai/sessions/` so nothing was lost.
 
-The throwaway database was dropped afterwards, and the test script was not committed.
-
-## Not done / things to know
-- Deleting a district that is still in use now fails with 409 instead of succeeding. That is the point of the fix, but any admin who relied on the silent un-linking will notice.
-- I only looked at districts and glaciers. Other delete paths (lakes, alerts, facilities, protocols, users) were not reviewed for the same kind of race.
-- The website issue still mentions old file names (`src/lib/queries.ts`); its text is out of date.
-- No migration is needed and nothing has to be deployed first.
+## Not done / deferred
+- **Before deploying `main` (PR #27):** the server's `/opt/cryohealth/.env` needs `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL` and `FIREBASE_PRIVATE_KEY`, and `docker-compose.prod.yml` (not in the repo) must load it with `env_file:`. Production refuses to boot without all three. This was marked blocking in the push session and is still unconfirmed.
+- Migrations were only exercised by mocked tests locally on #26 (`...DropInventedRiskScoreConfidence`, `...MakeLakeDownstreamPopulationNullable`). CI runs `npm run migration:run` against Postgres on every PR, which covers them; still check `/lakes` and `/hot-lakes` on a dev database.
+- #26 does not close #13: downstream population needs a real source and per-score confidence does not exist yet.
+- PRs #21 and #23 are not updated; each needs `main` merged in and its own `HANDOFF.md` resolved (see below).
+- The cause of the conflicts is the CI check, not these branches (see Open questions).
 
 ## Next action
-Someone with merge rights reviews and merges this PR; the author is not merging it. Once the two checks (`test`, `handoff-fresh`) are green it is ready. This file will conflict with the other open API PRs (#21, #22, #23), which also rewrite it. That is only this file; there are no code conflicts with them. Whichever PR merges first, the others need `main` merged in and this file resolved.
+Review and merge #22, #24, #25 and #26 in any order. After the first one merges, GitHub should show the others as mergeable (a "Update branch" button may appear but is not needed for this file).
 
 ## Open questions for a human
-- Is it right that a district which still has lakes, alerts, glaciers, CHW profiles or cases cannot be deleted? The alternative is to let the delete go through and leave those rows without a district, which is what happened silently before. — blocking: no
+- The `uexel-handoff-check` workflow fails any PR that does not change `docs/ai/HANDOFF.md`, so every parallel PR rewrites the same single-state file and they all conflict. Should the check also accept a new file under `docs/ai/sessions/` as proof of a handoff, and `HANDOFF.md` be refreshed on `main` only? The workflow is copied in by `bin/uexel-onboard` from uExel/cryo-harness, so the real fix belongs there. — blocking: no
+
+## Why this file looks the same on every branch
+Git only reports a conflict when two branches change the same lines in different ways. If both sides make the identical change, the merge is clean. So the four branches carry exactly this text, and each session's own handoff lives in its own, uniquely named file under `docs/ai/sessions/` (a new file with a new name can never conflict). When you add a session of your own, add a new file there; only touch this file when the branch you are on is the only one open.
 
 ## Failed approaches (do not retry)
+- Resolving each PR's `HANDOFF.md` separately by keeping that PR's own text: it works for one merge, but after the first PR lands every other PR conflicts again.
 - `npm run lint` runs with `--fix` and rewrites files; run `npx eslint <files>` on the files you changed instead.
+- Git Bash turns `git show origin/main:path` into a Windows path list; set `MSYS_NO_PATHCONV=1` first.
 
 ## Loops run
 - none
 
 ## Files touched
-src/glaciers/glaciers.service.ts, src/districts/districts.service.ts, src/glaciers/glaciers.service.spec.ts, src/districts/districts.service.spec.ts, docs/ai/HANDOFF.md, docs/ai/sessions/2026-09-27-alert-broadcast-fix-handoff.md
+docs/ai/HANDOFF.md, docs/ai/sessions/2026-10-16-push-notifications-handoff.md, and one `docs/ai/sessions/*-handoff.md` per PR (named in the table above). No source files changed in this session.
 
 ## Verification status
-tests: 54/54 (45 existing + 9 new; the 9 fail on the old code)  build: pass (`nest build`)  lint (4 changed files, no --fix): 0 errors, 6 warnings (`any` inside the test mocks, same as the existing specs)  real-database check with two connections, old vs new code: done, results above  review: none  qa: none beyond the above
+tests: #22 56/56, #24 64/64, #25 62/62, #26 68/68 (each with `main` merged in)  tsc: clean on all four  lint: not run on this change (docs only)  review: none  qa: n/a — no code changed
 
 ## Resume with
-`git log --oneline origin/main..fix/issue-34-delete-guards-lock` then `gh pr list --repo uExel/CryoHealth-api --head fix/issue-34-delete-guards-lock`
+/uexel:orient   (then: gh pr list --repo uExel/CryoHealth-api --state open)
