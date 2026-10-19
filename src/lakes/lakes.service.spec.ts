@@ -39,18 +39,6 @@ describe('LakesService', () => {
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
-  it('caps observation pageSize at 500 and orders newest first', async () => {
-    obsRepo.findAndCount.mockResolvedValue([[], 0]);
-    await service.listObservations('lake-1', 1, 10_000);
-    expect(obsRepo.findAndCount).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { lakeId: 'lake-1' },
-        order: { capturedAt: 'DESC' },
-        take: 500,
-      }),
-    );
-  });
-
   it('lake detail alerts expose status and cleared_at so cleared alerts can be told apart', async () => {
     const alertRow = {
       id: 'a-1',
@@ -70,5 +58,17 @@ describe('LakesService', () => {
     expect(alertsSql).toContain('status');
     expect(alertsSql).toContain('"clearedAt" AS cleared_at');
     expect(detail.alerts).toEqual([alertRow]);
+  });
+
+  it('caps observation pageSize at 500 and orders newest first', async () => {
+    obsRepo.findAndCount.mockResolvedValue([[], 0]);
+    await service.listObservations('lake-1', 1, 10_000);
+    expect(obsRepo.findAndCount).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { lakeId: 'lake-1' },
+        order: { capturedAt: 'DESC' },
+        take: 500,
+      }),
+    );
   });
 });
