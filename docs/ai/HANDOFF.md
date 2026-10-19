@@ -1,64 +1,55 @@
-# HANDOFF — CryoHealth-api — 2026-10-07 13:00 PKT
-Session: issue-14-glacier-rgi-seed  Model: claude-opus-5-5  Branch: fix/14-glacier-rgi-seed  Goal: cryohealth#1  Task: #14
+# HANDOFF — CryoHealth-api — 2026-10-18
+Session: open-api-prs-handoff-consolidation  Model: claude-sonnet-5-5  Branch: (shared by PRs #21, #22, #23, #24, #25, #26)  Goal: none  Task: land the six open API PRs without `HANDOFF.md` conflicts
 
 ## State
-The glacier register is now seeded from cited data. It has 32 glaciers:
-- 24 are matched to RGI v7.0. Their area, length, elevation, centroid and outline date are read from a committed extract (`src/glaciers/data/rgi7-region14-extract.csv`).
-- 6 are tributaries with no RGI outline of their own. They carry only published values: USGS PP 1386-F Table 3, Young & Schmok 1989 (Miar), and Wake & Searle 1993 (Pumarikish).
-- 2 are names only, with no published measurement: Ghandershish and Ghompot.
+`main` is at 529129d and already includes PR #27 (FCM push notifications). Six more API PRs are open against it. None is merged or deployed. This file is identical on all six branches on purpose, so they can be merged in any order without conflicting on it (see "Why this file looks the same on every branch").
 
-Each matched glacier gets one dated baseline observation, and so does each tributary that has a published value. Districts come from the geoBoundaries PAK ADM2 district that contains the RGI terminus point. Siachen and Bilafond are blank on purpose because the area is disputed.
+| PR | Branch | What it does | Session note |
+|---|---|---|---|
+| #21 | `fix/19-protocol-steps` | Protocol step validation reads the tier list from one shared `TIERS` const instead of its own copy (#19); fixes a wrong comment in the dev seed | `sessions/2026-10-06-issue-19-protocol-steps-handoff.md` |
+| #22 | `fix/issue-30-lake-alerts-include-status` | `GET /lakes/:id/detail` also returns alert `status` and `cleared_at` (API half of cryohealth#30) | `sessions/2026-10-07-issue-30-lake-alerts-status-handoff.md` |
+| #23 | `fix/14-glacier-rgi-seed` | Glacier register seeded from RGI v7.0 and cited sources, with a migration (`source_url`, unique `rgi_id`), `seed:glaciers` / `verify:glaciers` scripts (#14) | `sessions/2026-10-07-issue-14-glacier-rgi-seed-handoff.md` |
+| #24 | `fix/issue-34-delete-guards-lock` | Delete of a district or glacier locks the parent row before counting dependents; district delete refuses with 409 while rows still point at it (cryohealth#34) | `sessions/2026-10-12-issue-34-delete-guards-lock-handoff.md` |
+| #25 | `feat/admin-create-case` | `POST /admin/cases` so the admin portal's "Log a case" form works (cryohealth#3) | `sessions/2026-10-12-issue-3-admin-create-case-handoff.md` |
+| #26 | `fix/issue-13-lake-score-area-and-cors` | `CORS_ORIGINS` is read, `/lakes` returns the real latest score/area, no more fake `0` for risk score or downstream population (#13, partial) | `sessions/2026-10-14-issue-13-lake-score-and-cors-handoff.md` |
 
-The migration adds a `glaciers.source_url` column and a partial unique index on `rgi_id`. A duplicate RGI ID on admin create or edit returns 409. PR is open for #14. Nothing has been run in prod yet.
+Each session's full handoff (what was done, how it was checked, what is left) is kept unedited in the file named in the table. The handoff of the push-notifications session that was on `main` before this one is `sessions/2026-10-16-push-notifications-handoff.md`.
 
 ## Done this session
-- Rewrote `scripts/seed-glaciers.ts` to use the data module (`src/glaciers/data/glaciers.seed-data.ts`) and upsert on `rgi_id`. It updates legacy rows in place, by name or renamed name.
-- Added `scripts/verify-glaciers.ts`. It fails on:
-  - a missing citation;
-  - a point outside the region;
-  - a zero or negative measurement;
-  - an unregistered NULL `rgi_id`;
-  - an unmatched record whose values differ from its citation.
-- Matched 5 glaciers to unnamed RGI outlines by location. The evidence is in each record's notes:
-  - Chogo Lungma
-  - Shani
-  - Mashish
-  - Mazeno
-  - Badswat (G1), renamed from "Badswat Glacier (G1/G2)"
-- Added Passu and Ghulkin, both matched by RGI name.
-- Set Shishper (RGI "Hasanabad Glacier II", a team identification) to status `surging`, the project's status term. The old value `surge-type` was not in the DTO or dashboard enums.
-- `seed-dev-data.ts` no longer inserts glaciers. Its differently-named copies had created duplicate rows with no measurements.
-- Added `seed:glaciers` and `verify:glaciers` npm scripts.
-- Added `src/glaciers/data/glaciers.seed-data.spec.ts`, which checks the data module with no DB.
+- Merged `main` into all six branches and resolved the conflicts: `docs/ai/HANDOFF.md` on all six, and `package.json` on #23 (main added the `push:test` script, #23 added `seed:glaciers` and `verify:glaciers`; all three are kept, no dependency changed).
+- Re-ran `tsc --noEmit` and `jest` on each branch after the merge: #21 55/55, #22 56/56, #23 97/97, #24 64/64, #25 62/62, #26 68/68 tests; `tsc` clean on all six.
+- Found a second, non-docs collision: #22 and #26 both append a new test at the end of `src/lakes/lakes.service.spec.ts`. Moved #22's one test up the file (unchanged, only its position) so the two edit different places.
+- Merging the six into `main` was tried in many orders (every ordered pair, plus a sample of full orders): no conflict. All six together pass `tsc` and 127 tests.
+- Saved every session's handoff and the push-notifications handoff as separate files under `docs/ai/sessions/` so nothing was lost.
 
 ## Not done / deferred
-- Vague team references need exact citations: the IUCN Karakoram source (Trango), the CKNP inventory (Chogo Lungma), PMD (Shani) and GAMDAM (Badswat). They are recorded as "as cited by the CryoHealth team".
-- Districts: prod has 10 Gilgit-Baltistan districts, entered by hand through the admin UI. No seed creates them, so a fresh DB has only Hunza and Ghizer. In that case the glacier seed leaves the other districts NULL and prints a warning. Seeding them needs a source for the population figures.
-- Glacier lat/lng stays the RGI centroid, by user decision; the terminus was considered and rejected. The dashboard ranks glaciers against lakes by distance from this point.
-- Conflict with PR #21: both PRs rewrite `docs/ai/HANDOFF.md`, so whichever merges second needs a trivial conflict resolution. The archived `sessions/2026-09-27-alert-broadcast-fix-handoff.md` is byte-identical in both branches.
-- Prod rollout: run `npm run migration:run`, then `npm run seed:glaciers && npm run verify:glaciers` in the API container. This updates prod's 30 existing glacier rows in place and adds Passu and Ghulkin.
+- **Before deploying `main` (PR #27):** the server's `/opt/cryohealth/.env` needs `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL` and `FIREBASE_PRIVATE_KEY`, and `docker-compose.prod.yml` (not in the repo) must load it with `env_file:`. Production refuses to boot without all three. This was marked blocking in the push session and is still unconfirmed.
+- **#23 rollout:** after deploy, run `npm run migration:run`, then `npm run seed:glaciers && npm run verify:glaciers` in the API container.
+- #26 does not close #13: downstream population needs a real source and per-score confidence does not exist yet.
+- The cause of the conflicts is the CI check, not these branches (see Open questions).
 
 ## Next action
-gh pr view --repo uExel/CryoHealth-api fix/14-glacier-rgi-seed
+Review and merge #21 to #26 in any order. After the first one merges, GitHub should show the others as mergeable (an "Update branch" button may appear but is not needed for this file).
 
 ## Open questions for a human
-- Exact references for the four vague citations above. — blocking: no
-- Source for the prod district populations, so the 10 districts can be seeded. — blocking: no
+- The `uexel-handoff-check` workflow fails any PR that does not change `docs/ai/HANDOFF.md`, so every parallel PR rewrites the same single-state file and they all conflict. Should the check also accept a new file under `docs/ai/sessions/` as proof of a handoff, and `HANDOFF.md` be refreshed on `main` only? The workflow is copied in by `bin/uexel-onboard` from uExel/cryo-harness, so the real fix belongs there. — blocking: no
+
+## Why this file looks the same on every branch
+Git only reports a conflict when two branches change the same lines in different ways. If both sides make the identical change, the merge is clean. So the six branches carry exactly this text, and each session's own handoff lives in its own, uniquely named file under `docs/ai/sessions/` (a new file with a new name can never conflict). When you add a session of your own, add a new file there; only touch this file when the branch you are on is the only one open.
 
 ## Failed approaches (do not retry)
-- The NSIDC RGI v7 / v6 downloads need an Earthdata login. Use the public GLIMS GeoServer WFS (`GLIMS:RGI2000-v7.0-G-14_south_asia_west_epsg3857`) instead.
-- `manager.query('UPDATE … RETURNING')` returns `[rows, rowCount]` in TypeORM's postgres driver, not just the rows. Destructure it, or a missing row is never inserted.
-- Passing a bare `YYYY-MM-DD` to a timestamptz column stores local midnight (the DB session runs in Asia/Karachi). Append `T00:00:00Z`.
-- `CREATE DATABASE` for a scratch test DB: the `cryohealth` role has no CREATEDB permission. Back up with `pg_dump` and test against the dev DB instead.
+- Resolving each PR's `HANDOFF.md` separately by keeping that PR's own text: it works for one merge, but after the first PR lands every other PR conflicts again.
+- `npm run lint` runs with `--fix` and rewrites files; run `npx eslint <files>` on the files you changed instead.
+- Git Bash turns `git show origin/main:path` into a Windows path list; set `MSYS_NO_PATHCONV=1` first.
 
 ## Loops run
 - none
 
 ## Files touched
-package.json, scripts/seed-glaciers.ts, scripts/verify-glaciers.ts (new), scripts/seed-dev-data.ts, src/database/migrations/1791283685914-GlacierRgiUniqueAndSourceUrl.ts (new), src/glaciers/data/ (new: glaciers.seed-data.ts, glaciers.seed-data.spec.ts, rgi7-region14-extract.csv, README.md), src/glaciers/entities/glacier.entity.ts, src/glaciers/dto/create-glacier.dto.ts, src/glaciers/dto/update-glacier.dto.ts, src/glaciers/glaciers.service.ts, docs/ai/HANDOFF.md, docs/ai/sessions/2026-09-27-alert-broadcast-fix-handoff.md
+docs/ai/HANDOFF.md, docs/ai/sessions/2026-10-16-push-notifications-handoff.md, and one `docs/ai/sessions/*-handoff.md` per PR (named in the table above), plus `package.json` on #23 (script lines only). The only other non-doc change is #22's `src/lakes/lakes.service.spec.ts`, where a test moved position; no production code changed.
 
 ## Verification status
-tests: 87/87  tsc: clean  lint (glacier files): clean  review: none  qa: local dev DB. The migration ran; the seed was idempotent across repeated runs and inserted a missing row exactly once; `verify:glaciers` passed; `GET /glaciers` and `/glaciers/:id/observations` were checked, and `/admin/glaciers` was viewed in the dashboard.
+tests: #21 55/55, #22 56/56, #23 97/97, #24 64/64, #25 62/62, #26 68/68 (each with `main` merged in); all six combined 127  tsc: clean on all six and combined  lint: not run on this change (docs only)  review: none  qa: n/a — no production code changed
 
 ## Resume with
-/uexel:orient   (then: gh pr view --repo uExel/CryoHealth-api fix/14-glacier-rgi-seed)
+/uexel:orient   (then: gh pr list --repo uExel/CryoHealth-api --state open)
