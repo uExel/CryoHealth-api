@@ -15,6 +15,7 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Public } from '../common/decorators/public.decorator';
+import { Roles } from '../common/decorators/roles.decorator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { LakesService } from './lakes.service';
 import type { Request } from 'express';
@@ -105,6 +106,7 @@ export class LakesController {
   }
 
   @Post('admin/lakes')
+  @Roles('cryohealth_admin')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Admin: Create lake' })
@@ -116,6 +118,7 @@ export class LakesController {
   }
 
   @Put('admin/lakes/:id')
+  @Roles('cryohealth_admin')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Admin: Update lake' })
@@ -128,6 +131,7 @@ export class LakesController {
   }
 
   @Delete('admin/lakes/:id')
+  @Roles('cryohealth_admin')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Admin: Delete lake' })
