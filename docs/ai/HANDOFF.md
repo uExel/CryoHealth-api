@@ -42,5 +42,11 @@ src/push/ (new module: service, worker, controllers, entities, dto, firebase-cre
 ## Verification status
 tests: 55/55  tsc: clean  lint: not run  review: none  qa: FCM dry-run auth OK; no device push sent; `npm ci --dry-run` OK
 
+## Lake admin role guard (PR #28)
+- Restricted lake creation, update, and deletion to `cryohealth_admin` using `@Roles('cryohealth_admin')` on the three write routes in `src/lakes/lakes.controller.ts`.
+- Added controller tests covering admin access, 403 responses for `facility_admin`, `chw`, and `viewer`, missing-token 401 responses, and unchanged GET access for authenticated users.
+- Verification: Jest passed (10 suites, 71 tests); ESLint passed on the two changed files; TypeScript `tsc --noEmit` passed.
+- PR #28 (`fix/lake-admin-role-guard`, commit `c46c117`) is open and awaiting review.
+
 ## Resume with
 /uexel:orient   (then: gh pr view 27 --repo uExel/CryoHealth-api)
