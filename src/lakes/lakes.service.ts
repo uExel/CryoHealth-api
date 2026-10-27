@@ -147,11 +147,31 @@ export interface DepsCountRow {
   n: number;
 }
 
+/** The `exposure` block the geo service stores in HazardScore.components. */
+export interface ExposureComponent {
+  source?: string;
+  buffer_km?: number;
+  buffer_shape?: string;
+  population_within_buffer?: number;
+  note?: string;
+}
+
 export interface LatestScoreRow {
   lakeId: string;
   score: string;
   tier: string;
   computedAt: Date;
+  exposure: ExposureComponent | null;
+  rawInputs: RawInputs | null;
+  weights: Record<string, number> | null;
+}
+
+/** The `raw_inputs` block the geo service stores in HazardScore.components. */
+export interface RawInputs {
+  growth_30d_pct?: number | null;
+  growth_90d_pct?: number | null;
+  seasonal_anomaly_pct?: number | null;
+  dam_type?: string | null;
 }
 
 export interface LatestAreaRow {
@@ -170,6 +190,53 @@ export interface CurrentArea {
   areaKm2: number;
   capturedAt: Date;
 }
+
+/** A rough WorldPop figure, not a validated downstream population. See
+ *  downstreamPopulation for the curated number (null until a real source exists). */
+export interface DownstreamPopulationEstimate {
+  count: number;
+  bufferKm: number | null;
+  bufferShape: string | null;
+  source: string | null;
+  note: string;
+  computedAt: Date;
+}
+
+/**
+ * Share (0..1) of the score's weighted signals that had real data behind them. Geo
+ * scores a missing signal as zero risk, so a low value means the score leans on gaps.
+ * It is input coverage, not a statistical confidence. area_growth is half 30-day and
+ * half 90-day; a dam type of "unknown" counts as no data. Null when the stored score
+ * has no raw inputs or weights (older rows).
+ */
+export function inputCoverage(
+  raw: RawInputs | null | undefined,
+  weights: Record<string, number> | null | undefined,
+): number | null {
+  if (!raw || !weights) return null;
+  const has = (v: unknown) => typeof v === 'number';
+  const present: Record<string, number> = {
+    area_growth:
+      ((has(raw.growth_30d_pct) ? 1 : 0) + (has(raw.growth_90d_pct) ? 1 : 0)) /
+      2,
+    seasonal_anomaly: has(raw.seasonal_anomaly_pct) ? 1 : 0,
+    dam_type: raw.dam_type && raw.dam_type !== 'unknown' ? 1 : 0,
+    // static inputs geo always reads from the lake row
+    glacier_contact: 1,
+    slope: 1,
+    historical_glof: 1,
+  };
+  const total = Object.values(weights).reduce((a, b) => a + b, 0);
+  if (total <= 0) return null;
+  const covered = Object.entries(weights).reduce(
+    (sum, [k, w]) => sum + w * (present[k] ?? 0),
+    0,
+  );
+  return Math.round((covered / total) * 100) / 100;
+}
+
+const ESTIMATE_NOTE =
+  'Rough estimate: WorldPop people within a straight-line square buffer of the lake, not flow-path routed.';
 
 @Injectable()
 export class LakesService {
@@ -210,16 +277,17 @@ export class LakesService {
   }
 
   /**
-   * Adds currentScore and currentArea to each lake. They come from the newest
-   * HazardScore and Observation rows, so those tables stay the single source of
-   * truth. A lake with no score or no scene yet gets null, never a made-up value.
+   * Adds currentScore, currentArea, downstreamPopulationEstimate and inputCoverage to each lake. They
+   * come from the newest HazardScore and Observation rows, so those tables stay the
+   * single source of truth. A lake with no score, scene or exposure yet gets null,
+   * never a made-up value.
    */
   private async withLatestReadings(lakes: Lake[]) {
     if (lakes.length === 0) return [];
     const ids = lakes.map((l) => l.id);
     const [scoreRows, areaRows] = await Promise.all([
       this.dataSource.query(
-        `SELECT DISTINCT ON ("lakeId") "lakeId", score, tier, "computedAt" FROM hazard_scores WHERE "lakeId" = ANY($1) ORDER BY "lakeId", "computedAt" DESC`,
+        `SELECT DISTINCT ON ("lakeId") "lakeId", score, tier, "computedAt", components->'exposure' AS exposure, components->'raw_inputs' AS "rawInputs", components->'weights' AS weights FROM hazard_scores WHERE "lakeId" = ANY($1) ORDER BY "lakeId", "computedAt" DESC`,
         [ids],
       ) as Promise<LatestScoreRow[]>,
       this.dataSource.query(
@@ -239,10 +307,24 @@ export class LakesService {
       const currentArea: CurrentArea | null = a
         ? { areaKm2: Number(a.areaKm2), capturedAt: a.capturedAt }
         : null;
+      const count = s?.exposure?.population_within_buffer;
+      const downstreamPopulationEstimate: DownstreamPopulationEstimate | null =
+        s && typeof count === 'number'
+          ? {
+              count,
+              bufferKm: s.exposure?.buffer_km ?? null,
+              bufferShape: s.exposure?.buffer_shape ?? null,
+              source: s.exposure?.source ?? null,
+              note: ESTIMATE_NOTE,
+              computedAt: s.computedAt,
+            }
+          : null;
       return {
         ...lake,
         currentScore,
         currentArea,
+        downstreamPopulationEstimate,
+        inputCoverage: s ? inputCoverage(s.rawInputs, s.weights) : null,
         currentRiskScore: currentScore?.score ?? null,
         downstreamPopulation: lake.downstreamPopulation || null,
       };
