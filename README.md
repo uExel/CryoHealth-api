@@ -57,6 +57,7 @@ development logins; the PINs are in that file.
 | `admin-001` | `cryohealth_admin` | everything, including users, protocols, system health |
 | `facility-001` | `facility_admin` | issue, edit, clear and acknowledge alerts; other changes (districts, glaciers, protocols, facilities, CHW profiles, users) need `cryohealth_admin` |
 | `chw-001` | `chw` | community health worker (mobile app); can acknowledge alerts |
+| `reviewer-001` | `viewer` | for reviewers: read access, no write access to admin data |
 
 Log in with `POST /auth/login` and body `{"identifier": "...", "password": "<PIN>"}`. Use
 the returned `accessToken` as `Authorization: Bearer <token>`.

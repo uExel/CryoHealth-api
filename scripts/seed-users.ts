@@ -33,6 +33,12 @@ const DEV_USERS: Array<{
     pin: '1234',
   },
   {
+    lhwId: 'reviewer-001',
+    name: 'Reviewer (read-only)',
+    role: 'viewer',
+    pin: '4826',
+  },
+  {
     lhwId: '03002222222',
     name: 'Test User',
     role: 'cryohealth_admin',
