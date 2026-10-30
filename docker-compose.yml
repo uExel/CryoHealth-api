@@ -1,3 +1,17 @@
+# `docker compose up -d db`            database only, for local development (npm run start:dev)
+# `docker compose --profile full up`  database + migrations + test data + API, one command
+#
+# The `full` profile is a DEMO stack: the values below are fixed, public, development-only
+# values. Do not use them for a real deployment.
+x-demo-env: &demo-env
+  # NODE_ENV=development: the Dockerfile sets production, which would require the three
+  # Firebase variables. Without them push notifications are simply not sent.
+  NODE_ENV: development
+  DB_HOST: db
+  DB_PORT: 5432 # the port inside the compose network, not the 5433 published on the host
+  JWT_SECRET: change-me-in-prod
+  GEO_SERVICE_API_KEY: dev-only-geo-service-key-0123456789abcdef # min 32 chars; must match CryoHealth-geo's CRYOHEALTH_API_KEY
+
 services:
   db:
     image: postgis/postgis:16-3.4
@@ -15,17 +29,28 @@ services:
       timeout: 3s
       retries: 10
 
+  # Runs once and exits: creates the tables, then loads the real lakes and the dev logins.
+  # Safe to re-run: migrations only apply what is missing and both seeds upsert.
+  migrate:
+    build: .
+    profiles: ['full']
+    command: sh -c "npm run migration:run && npm run seed:lakes && npm run seed:users"
+    environment: *demo-env
+    depends_on:
+      db:
+        condition: service_healthy
+
   api:
     build: .
     profiles: ['full'] # `docker compose up -d db` for dev; `--profile full up` for the whole stack
-    environment:
-      DB_HOST: db
-      JWT_SECRET: change-me-in-prod
+    environment: *demo-env
     ports:
       - '3000:3000'
     depends_on:
       db:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
 
 volumes:
   dbdata:
