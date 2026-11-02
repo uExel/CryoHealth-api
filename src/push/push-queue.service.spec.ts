@@ -17,5 +17,7 @@ describe('PushQueueService', () => {
     expect(query).toContain('f."lakeId" = a."lakeId"');
     expect(query).toContain('a."lakeId" IS NULL');
     expect(query).toContain('d."active" = true');
+    expect(query).toContain(`"status" = 'pending'`);
+    expect(query).toContain(`"attempt_count" = 0`);
   });
 });

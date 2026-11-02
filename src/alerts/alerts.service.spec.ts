@@ -11,6 +11,7 @@ import { User } from '../users/entities/user.entity';
 import { AlertsService } from './alerts.service';
 import { NOTIFICATION_CHANNELS } from './notifications/notification-channel';
 import { PushQueueService } from '../push/push-queue.service';
+import { AlertEmailQueueService } from './notifications/alert-email-queue.service';
 
 describe('AlertsService', () => {
   const alertsRepo = {
@@ -24,6 +25,7 @@ describe('AlertsService', () => {
     send: jest.fn().mockResolvedValue(undefined),
   };
   const pushQueue = { enqueueAlert: jest.fn().mockResolvedValue(undefined) };
+  const emailQueue = { enqueueAlert: jest.fn().mockResolvedValue(undefined) };
 
   // Mocks a transaction() call by handing the callback an EntityManager stand-in whose
   // getRepository() returns per-entity mocks the test configures via `managerRepos`.
@@ -58,6 +60,7 @@ describe('AlertsService', () => {
         { provide: DataSource, useValue: dataSource },
         { provide: NOTIFICATION_CHANNELS, useValue: [channel] },
         { provide: PushQueueService, useValue: pushQueue },
+        { provide: AlertEmailQueueService, useValue: emailQueue },
       ],
     }).compile();
     service = mod.get(AlertsService);
@@ -171,6 +174,10 @@ describe('AlertsService', () => {
       );
       expect(channel.send).toHaveBeenCalled();
       expect(pushQueue.enqueueAlert).toHaveBeenCalledWith(
+        expect.anything(),
+        'alert-1',
+      );
+      expect(emailQueue.enqueueAlert).toHaveBeenCalledWith(
         expect.anything(),
         'alert-1',
       );
@@ -385,6 +392,60 @@ describe('AlertsService', () => {
 
       await service.updateAdmin('a1', { estimatedWindow: null }, 'admin-1');
       expect(update).toHaveBeenCalledWith('a1', { estimatedWindow: null });
+    });
+
+    it('requires and audits a reason when the admin edit changes the tier', async () => {
+      usersRepo.find.mockResolvedValue([]);
+      const update = jest.fn();
+      const auditInsert = jest.fn();
+      const lakeUpdate = jest.fn();
+      managerRepos = {
+        Alert: {
+          findOne: jest.fn().mockResolvedValue({
+            id: 'a1',
+            lakeId: 'lake-1',
+            tier: 'high',
+            status: 'active',
+          }),
+          update,
+          findOneOrFail: jest.fn().mockResolvedValue({
+            id: 'a1',
+            lakeId: 'lake-1',
+            tier: 'critical',
+            status: 'active',
+          }),
+        },
+        AuditEntry: { insert: auditInsert },
+        Lake: { update: lakeUpdate },
+      };
+
+      await expect(
+        service.updateAdmin('a1', { tier: 'critical' }, 'admin-1'),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(update).not.toHaveBeenCalled();
+
+      await service.updateAdmin(
+        'a1',
+        { tier: 'critical', reason: 'field report confirms imminent risk' },
+        'admin-1',
+      );
+      expect(auditInsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'alert.override',
+          reason: 'field report confirms imminent risk',
+        }),
+      );
+      expect(lakeUpdate).toHaveBeenCalledWith('lake-1', {
+        currentTier: 'critical',
+      });
+      expect(pushQueue.enqueueAlert).toHaveBeenCalledWith(
+        expect.anything(),
+        'a1',
+      );
+      expect(emailQueue.enqueueAlert).toHaveBeenCalledWith(
+        expect.anything(),
+        'a1',
+      );
     });
 
     it('rejects an edit with no fields', async () => {

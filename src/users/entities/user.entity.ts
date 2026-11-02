@@ -19,6 +19,7 @@ export class User {
   })
   role: Role;
   @Column() name: string;
+  @Column({ nullable: true }) email?: string | null;
   @Column({ nullable: true, unique: true }) phone?: string;
   @Column({ nullable: true, unique: true }) lhwId?: string;
   @Column() passwordHash: string;

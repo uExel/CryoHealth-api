@@ -22,7 +22,16 @@ export class PushQueueService {
                AND f."lakeId" = a."lakeId"
            )
          )
-       ON CONFLICT ("alert_id", "device_id") DO NOTHING`,
+       ON CONFLICT ("alert_id", "device_id") DO UPDATE
+       SET "title" = EXCLUDED."title",
+           "body" = EXCLUDED."body",
+           "tier" = EXCLUDED."tier",
+           "status" = 'pending',
+           "attempt_count" = 0,
+           "next_attempt_at" = NOW(),
+           "sent_at" = NULL,
+           "last_error" = NULL,
+           "updated_at" = NOW()`,
       [alertId],
     );
   }

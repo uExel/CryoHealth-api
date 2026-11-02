@@ -2,9 +2,11 @@
 
 ## Status
 
-Implemented for Android FCM. Email and iOS/APNs delivery are not configured.
-The user schema has no email address, and the geo service does not provide an impact
-window; neither per-CHW email nor an automatic impact window is currently delivered.
+Android FCM and SMTP email use durable per-recipient outboxes. SMTP settings are
+required in production, and alert emails are queued for active, mapped CHWs with an
+email address. The geo hazard model still has no forecast source; automatic impact
+windows are populated only when the geo caller supplies source-backed values.
+iOS/APNs delivery is not configured.
 
 ## Context
 
@@ -17,6 +19,9 @@ native FCM tokens, and the backend uses the Firebase Admin SDK.
 
 - Keep push tokens in `push_devices`; guest tokens remain unlinked, while an
   authenticated CHW/facility-admin device can be linked to its user.
+- Store optional CHW email addresses on `users`. Queue one email per active mapped CHW
+  with an address in the alert transaction; the SMTP worker retries transient failures
+  with capped backoff. The address and message are snapshotted for the delivery record.
 - Insert one `push_deliveries` row for each active device in the same database
   transaction as the alert. This is the durable per-device outbox; alert commits do not
   wait for Firebase.
@@ -26,8 +31,11 @@ native FCM tokens, and the backend uses the Firebase Admin SDK.
 - A worker claims jobs with `FOR UPDATE SKIP LOCKED`, sends FCM multicast batches,
   retries transient failures with capped exponential backoff, and disables invalid
   tokens. Terminal outcomes and error codes remain inspectable in the database.
-- Only newly inserted alerts are broadcast. Dedupe prevents duplicate delivery jobs;
-  edits, overrides, and clears do not currently send push updates.
+- New alerts and audited tier overrides are broadcast. Dedupe prevents duplicate jobs
+  for repeated hazard-score reports; edits to body/window and clears do not send updates.
+- `estimatedWindow`, `windowStart`, `windowEnd`, and downstream summary are part of the
+  alert-feed response and email body. The geo client can forward source-provided windows;
+  the current hazard model does not forecast impact times, so it must not fabricate one.
 - Store the Firebase Admin credential outside source control, as three environment
   variables: `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL` and `FIREBASE_PRIVATE_KEY`
   (newlines written as literal `\n`). The Android `google-services.json` is app/build
@@ -39,6 +47,10 @@ native FCM tokens, and the backend uses the Firebase Admin SDK.
 
 - Run the TypeORM migration before deploying the API and set the three `FIREBASE_*`
   variables in the production `.env`; production refuses to boot without them.
+- Set `SMTP_HOST`, `SMTP_FROM`, `SMTP_PORT`, and `SMTP_SECURE` for production; if the
+  relay authenticates, set both `SMTP_USER` and `SMTP_PASSWORD`. Add actual CHW email
+  addresses through the admin user screen. Missing CHW addresses are logged and those
+  recipients are not queued.
 - Provide the Android Firebase config file to local and EAS builds; the package name
   must match `com.uexel.cryohealth`.
 - Run the push-device user-link migration and deploy the matching app registration
@@ -46,4 +58,5 @@ native FCM tokens, and the backend uses the Firebase Admin SDK.
 - iOS requires a Firebase iOS app plus APNs credentials before push delivery can be
   relied on there.
 - Delivery is at-least-once: a worker crash after Firebase accepts a send but before
-  the database marks it sent can produce a duplicate notification.
+  either FCM or SMTP accepts a send but before the database marks it sent can produce a
+  duplicate notification.

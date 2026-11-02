@@ -115,7 +115,10 @@ export class AlertsController {
   @Put('admin/alerts/:id')
   @Roles('cryohealth_admin', 'facility_admin')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Admin: edit an alert (body, tier, window)' })
+  @ApiOperation({
+    summary:
+      'Admin: edit alert body/window; changing tier requires an audited reason and notifies recipients.',
+  })
   async updateAdmin(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateAlertDto,
