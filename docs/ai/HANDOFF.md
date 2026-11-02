@@ -5,7 +5,7 @@ Session: issue-2-alerts Branch: fix/issue-2-alert-notifications Task: tiered, de
 ## Current state
 
 PR #31 is open and ready for review against `main`: https://github.com/uExel/CryoHealth-api/pull/31
-It is not merged. API checks should be rerun after the current implementation changes.
+It is not merged. API checks pass on `0bc2070`.
 
 ## Done this session
 
@@ -13,20 +13,20 @@ It is not merged. API checks should be rerun after the current implementation ch
 - Added CHW email addresses to user administration and a durable SMTP outbox/worker with retries; tier overrides through both admin routes are reason-required, audited, and re-notified.
 - Added optional source-provided impact-window fields to the hazard-score API/geo client contract and mobile offline cache/display. No automatic impact window is fabricated because the current hazard model has no forecast source.
 - API build, changed-file ESLint, and full Jest suite passed after the final override hardening (63 tests).
-- Mobile, geo, and dashboard integration changes remain in separate local worktrees and are not included in the API PR; their tests and PRs are still pending.
-- Companion app registration and impact-window display changes are committed locally on `fix/issue-2-push-routing-integration`, based on `shabir_dev`. App push previously failed with HTTP 403.
-- Dashboard email-entry and reason-required tier-edit changes are in local branch `feat/issue-2-chw-email`; geo window-contract changes are in local branch `feat/issue-2-impact-window-contract`.
+- Dashboard email-entry and reason-required tier-edit changes are in PR #77 (`uExel/cryohealth#77`); build and handoff checks pass.
+- Companion app registration and impact-window display changes are committed locally on `fix/issue-2-push-routing-integration`, based on `shabir_dev`; pushing failed with HTTP 403.
+- Geo window-contract changes are committed locally on `feat/issue-2-impact-window-contract`; pushing failed with HTTP 403.
 
 ## Not done / external deployment requirements
 
 - SMTP delivery requires production `SMTP_*` settings and actual CHW email addresses; no credentials or recipient addresses are committed.
 - The current geo hazard pipeline has no impact forecast. It accepts and forwards source-provided windows, but automated transitions will have no impact window until a real forecast source is supplied.
-- The companion mobile and dashboard/geo branches must be pushed and reviewed before the issue's end-to-end demo is complete.
+- The mobile and geo commits need repository write access and PRs; dashboard PR #77 still needs review and merge.
 - Leave issue #2 open until configured delivery and source-backed windows are verified end to end.
 
 ## Next action
 
-Run focused API, mobile, dashboard, and geo checks; push feature branches where authorized; update the linked PRs and keep issue #2 open until operational prerequisites are verified.
+Get write access for the mobile and geo repositories, open PRs for their local commits, and keep issue #2 open until all integrations and production delivery are verified end to end.
 
 ---
 
