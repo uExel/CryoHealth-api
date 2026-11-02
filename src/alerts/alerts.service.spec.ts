@@ -106,12 +106,16 @@ describe('AlertsService', () => {
         findOne: jest.fn().mockResolvedValue(lake),
         update: jest.fn(),
       };
+      const facilityRepo = {
+        find: jest.fn().mockResolvedValue([{ name: 'Hunza Health Unit' }]),
+      };
       const hazardRepo = { insert: jest.fn().mockResolvedValue({}) };
+      const values = jest.fn().mockReturnThis();
       const alertRepo = {
         createQueryBuilder: jest.fn().mockReturnValue({
           insert: jest.fn().mockReturnThis(),
           into: jest.fn().mockReturnThis(),
-          values: jest.fn().mockReturnThis(),
+          values,
           orIgnore: jest.fn().mockReturnThis(),
           execute: jest
             .fn()
@@ -126,10 +130,11 @@ describe('AlertsService', () => {
       };
       managerRepos = {
         Lake: lakeRepo,
+        Facility: facilityRepo,
         HazardScore: hazardRepo,
         Alert: alertRepo,
       };
-      return { lakeRepo, hazardRepo, alertRepo };
+      return { lakeRepo, facilityRepo, hazardRepo, alertRepo, values };
     }
 
     it('does nothing but record the score when the tier has not changed', async () => {
@@ -146,7 +151,7 @@ describe('AlertsService', () => {
     });
 
     it('creates one alert and updates the lake tier on a real transition', async () => {
-      const { lakeRepo } = mockRepos();
+      const { lakeRepo, values } = mockRepos();
       const result = await service.recordHazardScore({
         lakeId: 'lake-1',
         runId: 'r1',
@@ -159,10 +164,34 @@ describe('AlertsService', () => {
       expect(lakeRepo.update).toHaveBeenCalledWith('lake-1', {
         currentTier: 'high',
       });
+      expect(values).toHaveBeenCalledWith(
+        expect.objectContaining({
+          downstreamSummary: 'Mapped downstream facilities: Hunza Health Unit',
+        }),
+      );
       expect(channel.send).toHaveBeenCalled();
       expect(pushQueue.enqueueAlert).toHaveBeenCalledWith(
         expect.anything(),
         'alert-1',
+      );
+    });
+
+    it('reports when no downstream facilities are mapped', async () => {
+      const { facilityRepo, values } = mockRepos();
+      facilityRepo.find.mockResolvedValue([]);
+
+      await service.recordHazardScore({
+        lakeId: 'lake-1',
+        runId: 'r1',
+        score: 0.9,
+        tier: 'high',
+        components: {},
+      });
+
+      expect(values).toHaveBeenCalledWith(
+        expect.objectContaining({
+          downstreamSummary: 'No facilities are mapped downstream of Shishper.',
+        }),
       );
     });
 

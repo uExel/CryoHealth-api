@@ -3,9 +3,12 @@ import {
   CreateDateColumn,
   Entity,
   Index,
+  JoinColumn,
+  ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { User } from '../../users/entities/user.entity';
 
 export type PushPlatform = 'android' | 'ios';
 
@@ -24,6 +27,13 @@ export class PushDevice {
 
   @Column({ default: true })
   active: boolean;
+
+  @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'user_id' })
+  user?: User | null;
+
+  @Column({ name: 'user_id', type: 'uuid', nullable: true })
+  userId?: string | null;
 
   @Column({ name: 'last_seen_at', type: 'timestamptz' })
   lastSeenAt: Date;

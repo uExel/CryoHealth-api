@@ -11,10 +11,11 @@ import { PushDeliveriesService } from './push-deliveries.service';
 import { PushDevicesController } from './push-devices.controller';
 import { PushDevicesService } from './push-devices.service';
 import { PushQueueService } from './push-queue.service';
+import { User } from '../users/entities/user.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Alert, PushDevice, PushDelivery]),
+    TypeOrmModule.forFeature([Alert, PushDevice, PushDelivery, User]),
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 30 }]),
   ],
   controllers: [PushDevicesController, PushDeliveriesController],

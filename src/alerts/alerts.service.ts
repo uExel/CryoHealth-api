@@ -9,6 +9,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, In, Repository } from 'typeorm';
 import { Lake } from '../lakes/entities/lake.entity';
 import { User } from '../users/entities/user.entity';
+import { Facility } from '../database/entities/facility.entity';
 import { Alert } from './entities/alert.entity';
 import { AuditEntry } from './entities/audit-entry.entity';
 import { HazardScore } from './entities/hazard-score.entity';
@@ -87,12 +88,21 @@ export class AlertsService {
         return { alert: null, deduped: false };
       }
 
+      const downstreamFacilities = await manager.getRepository(Facility).find({
+        where: { lakeId: dto.lakeId },
+        select: { name: true },
+        order: { name: 'ASC' },
+      });
       const { alert, deduped } = await this.insertAlert(manager, {
         lakeId: dto.lakeId,
         tier: dto.tier,
         title: `${lake.name}: tier now ${dto.tier.toUpperCase()}`,
         body: `Hazard score run ${dto.runId} moved ${lake.name} from ${lake.currentTier} to ${dto.tier}.`,
-        downstreamSummary: `Monitored lake in ${lake.valley}, ${lake.district}.`,
+        downstreamSummary: downstreamFacilities.length
+          ? `Mapped downstream facilities: ${downstreamFacilities
+              .map((facility) => facility.name)
+              .join(', ')}`
+          : `No facilities are mapped downstream of ${lake.name}.`,
       });
 
       if (!deduped) {

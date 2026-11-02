@@ -3,6 +3,8 @@
 ## Status
 
 Implemented for Android FCM. Email and iOS/APNs delivery are not configured.
+The user schema has no email address, and the geo service does not provide an impact
+window; neither per-CHW email nor an automatic impact window is currently delivered.
 
 ## Context
 
@@ -13,11 +15,14 @@ native FCM tokens, and the backend uses the Firebase Admin SDK.
 
 ## Decision
 
-- Keep push tokens in `push_devices`, independent of `users`, so guests can receive
-  every newly created alert.
+- Keep push tokens in `push_devices`; guest tokens remain unlinked, while an
+  authenticated CHW/facility-admin device can be linked to its user.
 - Insert one `push_deliveries` row for each active device in the same database
   transaction as the alert. This is the durable per-device outbox; alert commits do not
   wait for Firebase.
+- For lake-specific alerts, queue deliveries only for linked devices whose active user
+  belongs to a facility mapped to that lake. Alerts without a lake remain broadcast to
+  all active devices; unlinked guest devices do not receive lake-specific alerts.
 - A worker claims jobs with `FOR UPDATE SKIP LOCKED`, sends FCM multicast batches,
   retries transient failures with capped exponential backoff, and disables invalid
   tokens. Terminal outcomes and error codes remain inspectable in the database.
@@ -36,6 +41,8 @@ native FCM tokens, and the backend uses the Firebase Admin SDK.
   variables in the production `.env`; production refuses to boot without them.
 - Provide the Android Firebase config file to local and EAS builds; the package name
   must match `com.uexel.cryohealth`.
+- Run the push-device user-link migration and deploy the matching app registration
+  update before expecting lake-specific alerts to reach CHWs.
 - iOS requires a Firebase iOS app plus APNs credentials before push delivery can be
   relied on there.
 - Delivery is at-least-once: a worker crash after Firebase accepts a send but before
