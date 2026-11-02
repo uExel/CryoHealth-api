@@ -1,4 +1,28 @@
-# HANDOFF — CryoHealth-api — 2026-10-16 15:11 PKT
+# HANDOFF — CryoHealth-api — 2026-11-02
+Session: issue-2-alert-routing  Branch: fix/issue-2-alert-notifications  Task: scoped downstream push alerts for issue #2
+
+## Current state
+Draft PR #31 is open against `main`: https://github.com/uExel/CryoHealth-api/pull/31
+It is not merged. The API branch adds authenticated device-to-user linking and restricts lake-specific push delivery to active CHWs/facility admins mapped to that lake. Alert summaries use actual downstream facility names and state when none are mapped.
+
+## Done this session
+- Added the push-device user-link migration, eligible-user registration route, lake-scoped queue filtering, and tests.
+- Updated ADR 0003 to describe routing and known channel limitations.
+- API focused tests: 29 passed; TypeScript check and ESLint passed.
+- CI test job passed. The handoff check initially failed because this file was not updated; rerun CI after committing this update.
+- Mobile registration integration is committed locally as `824adcb` on `fix/issue-2-push-routing-integration`, based on `shabir_dev`. Push to `uExel/cryohealth-app` was rejected with HTTP 403, so no app PR exists yet.
+
+## Not done / deferred
+- Issue #2 is not fully resolved: per-CHW email has no user email field or configured provider, and the geo service supplies no impact window. Do not invent recipient addresses or window data.
+- The mobile app must call `/push/devices/for-user` for authenticated CHWs/facility admins. Coordinate access to push the companion branch and open its PR against `shabir_dev`.
+- Leave issue #2 open until the remaining requirements are addressed. The API PR references, but does not close, #2.
+
+## Next action
+Check PR #31 CI, then coordinate app-repository write access and open the companion PR against `shabir_dev`.
+
+---
+
+## Previous handoff — 2026-10-16
 Session: push-notifications  Model: claude-sonnet-5-5  Branch: feat/push-notifications  Goal: none  Task: none (FCM push for new alerts; PR #27)
 
 ## State
