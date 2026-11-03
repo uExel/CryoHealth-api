@@ -1,11 +1,12 @@
-# HANDOFF — CryoHealth-api — 2026-11-02
+# HANDOFF — CryoHealth-api — 2026-11-03
 
-Session: issue-2-alerts Branch: fix/issue-2-alert-notifications Task: tiered, deduped push/email alerts for issue #2
+Session: issue-2-alerts-follow-up Branch: fix/issue-2-alert-notifications Task: verify mobile/geo integrations for issue #2
 
 ## Current state
 
 PR #31 is open and ready for review against `main`: https://github.com/uExel/CryoHealth-api/pull/31
-It is not merged. API checks pass on `0bc2070`.
+It is not merged. API CI passes on `9cdbe02`. Dashboard PR #77 is open and its build and
+handoff checks pass.
 
 ## Done this session
 
@@ -14,8 +15,9 @@ It is not merged. API checks pass on `0bc2070`.
 - Added optional source-provided impact-window fields to the hazard-score API/geo client contract and mobile offline cache/display. No automatic impact window is fabricated because the current hazard model has no forecast source.
 - API build, changed-file ESLint, and full Jest suite passed after the final override hardening (63 tests).
 - Dashboard email-entry and reason-required tier-edit changes are in PR #77 (`uExel/cryohealth#77`); build and handoff checks pass.
-- Companion app registration and impact-window display changes are committed locally on `fix/issue-2-push-routing-integration`, based on `shabir_dev`; pushing failed with HTTP 403.
-- Geo window-contract changes are committed locally on `feat/issue-2-impact-window-contract`; pushing failed with HTTP 403.
+- Re-verified mobile typecheck and 7 focused alert/API + migration tests; changed-file ESLint passed.
+- Re-verified geo impact-window tests (5) and Ruff.
+- Retried pushes for mobile commit `69cf350` and geo commit `4a5a8ed`; both were denied with HTTP 403, so neither branch has a PR.
 
 ## Not done / external deployment requirements
 
