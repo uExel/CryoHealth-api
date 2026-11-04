@@ -1,12 +1,12 @@
-# HANDOFF — CryoHealth-api — 2026-11-03
+# HANDOFF — CryoHealth-api — 2026-11-04
 
-Session: issue-2-alerts-follow-up Branch: fix/issue-2-alert-notifications Task: verify mobile/geo integrations for issue #2
+Session: issue-2-fork-prs Branch: fix/issue-2-alert-notifications Task: open mobile/geo PRs without upstream write access
 
 ## Current state
 
 PR #31 is open and ready for review against `main`: https://github.com/uExel/CryoHealth-api/pull/31
-It is not merged. API CI passes on `9cdbe02`. Dashboard PR #77 is open and its build and
-handoff checks pass.
+It is not merged. API CI passes. Dashboard PR #77 is open and its build and handoff
+checks pass. Mobile PR #7 and geo PR #27 are open from personal forks; neither is merged.
 
 ## Done this session
 
@@ -17,18 +17,19 @@ handoff checks pass.
 - Dashboard email-entry and reason-required tier-edit changes are in PR #77 (`uExel/cryohealth#77`); build and handoff checks pass.
 - Re-verified mobile typecheck and 7 focused alert/API + migration tests; changed-file ESLint passed.
 - Re-verified geo impact-window tests (5) and Ruff.
-- Retried pushes for mobile commit `69cf350` and geo commit `4a5a8ed`; both were denied with HTTP 403, so neither branch has a PR.
+- Created personal forks and opened mobile PR #7 against `shabir_dev` and geo PR #27 against `main`.
+- Fork PR workflows are awaiting GitHub maintainer approval (`action_required`); no CI jobs have run yet.
 
 ## Not done / external deployment requirements
 
 - SMTP delivery requires production `SMTP_*` settings and actual CHW email addresses; no credentials or recipient addresses are committed.
 - The current geo hazard pipeline has no impact forecast. It accepts and forwards source-provided windows, but automated transitions will have no impact window until a real forecast source is supplied.
-- The mobile and geo commits need repository write access and PRs; dashboard PR #77 still needs review and merge.
+- A maintainer must approve the fork PR workflows and review the mobile, geo, API, and dashboard PRs.
 - Leave issue #2 open until configured delivery and source-backed windows are verified end to end.
 
 ## Next action
 
-Get write access for the mobile and geo repositories, open PRs for their local commits, and keep issue #2 open until all integrations and production delivery are verified end to end.
+Ask a maintainer to approve the mobile and geo fork PR workflows, then review CI and keep issue #2 open until production email and end-to-end delivery are verified.
 
 ---
 
