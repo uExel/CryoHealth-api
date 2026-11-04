@@ -9,6 +9,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, In, Repository } from 'typeorm';
 import { Lake } from '../lakes/entities/lake.entity';
 import { User } from '../users/entities/user.entity';
+import { Facility } from '../database/entities/facility.entity';
 import { Alert } from './entities/alert.entity';
 import { AuditEntry } from './entities/audit-entry.entity';
 import { HazardScore } from './entities/hazard-score.entity';
@@ -22,6 +23,7 @@ import {
   NotificationChannel,
 } from './notifications/notification-channel';
 import { PushQueueService } from '../push/push-queue.service';
+import { AlertEmailQueueService } from './notifications/alert-email-queue.service';
 
 const MAX_PAGE = 100;
 const POSTGRES_UNIQUE_VIOLATION = '23505';
@@ -41,6 +43,7 @@ export class AlertsService {
     @Inject(NOTIFICATION_CHANNELS)
     private readonly channels: NotificationChannel[],
     private readonly pushQueue: PushQueueService,
+    private readonly emailQueue: AlertEmailQueueService,
   ) {}
 
   async recipientsFor(lakeId: string): Promise<AlertRecipient[]> {
@@ -69,6 +72,7 @@ export class AlertsService {
   async recordHazardScore(
     dto: RecordHazardScoreDto,
   ): Promise<{ alert: Alert | null; deduped: boolean }> {
+    this.validateImpactWindow(dto.windowStart, dto.windowEnd);
     return this.dataSource.transaction(async (manager) => {
       const lakeRepo = manager.getRepository(Lake);
       const lake = await lakeRepo.findOne({ where: { id: dto.lakeId } });
@@ -87,17 +91,30 @@ export class AlertsService {
         return { alert: null, deduped: false };
       }
 
+      const downstreamFacilities = await manager.getRepository(Facility).find({
+        where: { lakeId: dto.lakeId },
+        select: { name: true },
+        order: { name: 'ASC' },
+      });
       const { alert, deduped } = await this.insertAlert(manager, {
         lakeId: dto.lakeId,
         tier: dto.tier,
         title: `${lake.name}: tier now ${dto.tier.toUpperCase()}`,
         body: `Hazard score run ${dto.runId} moved ${lake.name} from ${lake.currentTier} to ${dto.tier}.`,
-        downstreamSummary: `Monitored lake in ${lake.valley}, ${lake.district}.`,
+        windowStart: dto.windowStart ? new Date(dto.windowStart) : undefined,
+        windowEnd: dto.windowEnd ? new Date(dto.windowEnd) : undefined,
+        estimatedWindow: dto.estimatedWindow,
+        downstreamSummary: downstreamFacilities.length
+          ? `Mapped downstream facilities: ${downstreamFacilities
+              .map((facility) => facility.name)
+              .join(', ')}`
+          : `No facilities are mapped downstream of ${lake.name}.`,
       });
 
       if (!deduped) {
         await lakeRepo.update(lake.id, { currentTier: dto.tier });
         await this.pushQueue.enqueueAlert(manager, alert!.id);
+        await this.emailQueue.enqueueAlert(manager, alert!.id);
         await this.notify(alert!, lake.id);
       }
       return { alert, deduped };
@@ -105,6 +122,7 @@ export class AlertsService {
   }
 
   async issueManual(dto: IssueAlertDto, actorId: string): Promise<Alert> {
+    this.validateImpactWindow(dto.windowStart, dto.windowEnd);
     return this.dataSource.transaction(async (manager) => {
       const { alert, deduped, conflictWith } = await this.insertAlert(manager, {
         lakeId: dto.lakeId,
@@ -133,6 +151,7 @@ export class AlertsService {
       }
       await this.audit(manager, actorId, 'alert.issue', alert!.id, dto.reason);
       await this.pushQueue.enqueueAlert(manager, alert!.id);
+      await this.emailQueue.enqueueAlert(manager, alert!.id);
       await this.notify(alert!, dto.lakeId);
       return alert!;
     });
@@ -176,6 +195,8 @@ export class AlertsService {
           fromTier: alert.tier,
           toTier: dto.tier,
         });
+        await this.pushQueue.enqueueAlert(manager, id);
+        await this.emailQueue.enqueueAlert(manager, id);
       }
 
       const updated = await repo.findOneOrFail({ where: { id } });
@@ -243,6 +264,13 @@ export class AlertsService {
       const repo = manager.getRepository(Alert);
       const before = await repo.findOne({ where: { id } });
       if (!before) throw new NotFoundException('Alert not found');
+      const tierChanged = dto.tier !== undefined && dto.tier !== before.tier;
+      const reason = dto.reason?.trim();
+      if (tierChanged && !reason) {
+        throw new BadRequestException(
+          'A reason is required when changing an alert tier',
+        );
+      }
       try {
         await repo.update(id, patch);
       } catch (err) {
@@ -262,12 +290,26 @@ export class AlertsService {
       }
       await manager.getRepository(AuditEntry).insert({
         actorId,
-        action: 'alert.update',
+        action: tierChanged ? 'alert.override' : 'alert.update',
         entityType: 'Alert',
         entityId: id,
+        reason: tierChanged ? reason : undefined,
         meta: Object.keys(changed).length ? { changed } : undefined,
       } as Partial<AuditEntry>);
-      return repo.findOneOrFail({ where: { id } });
+      if (tierChanged && before.status === 'active') {
+        if (before.lakeId) {
+          await manager
+            .getRepository(Lake)
+            .update(before.lakeId, { currentTier: dto.tier });
+        }
+        await this.pushQueue.enqueueAlert(manager, id);
+        await this.emailQueue.enqueueAlert(manager, id);
+      }
+      const updated = await repo.findOneOrFail({ where: { id } });
+      if (tierChanged && before.status === 'active') {
+        await this.notify(updated, before.lakeId);
+      }
+      return updated;
     });
   }
 
@@ -362,6 +404,14 @@ export class AlertsService {
       'code' in err &&
       err.code === POSTGRES_UNIQUE_VIOLATION
     );
+  }
+
+  private validateImpactWindow(start?: string, end?: string): void {
+    if (start && end && new Date(end).getTime() < new Date(start).getTime()) {
+      throw new BadRequestException(
+        'windowEnd must be at or after windowStart',
+      );
+    }
   }
 
   private async audit(
