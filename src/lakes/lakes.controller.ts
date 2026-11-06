@@ -46,9 +46,10 @@ export class LakesController {
     return this.lakes.listHotLakes();
   }
 
-  @Public()
   @Get('lakes-admin')
-  @ApiOperation({ summary: 'Admin-shaped lake list (public, no auth)' })
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Admin-shaped lake list (auth required, any role)' })
   listLakesAdminPublic() {
     return this.lakes.listAdmin();
   }
