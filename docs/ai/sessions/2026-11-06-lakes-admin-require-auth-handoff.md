@@ -5,8 +5,8 @@ Session: lakes-admin-require-auth  Model: claude-sonnet-5-5  Branch: fix/lakes-a
 `GET /lakes-admin` was marked `@Public()` although its name and summary say "admin". It now needs a valid JWT; any role is accepted, the same as `GET /admin/lakes`. Not merged, not deployed. Branched from `main` (529129d).
 
 ## Done this session
-- `src/lakes/lakes.controller.ts`: removed `@Public()` from `GET /lakes-admin`, added `@UseGuards(JwtAuthGuard)` + `@ApiBearerAuth()`, fixed the Swagger summary. The method name `listLakesAdminPublic` is unchanged on purpose, so this does not conflict with other open PRs that touch the file.
-- `src/lakes/lakes-admin-route.spec.ts` (new, 7 tests): real controller and the same two global guards as `AppModule`, service stubbed. 401 with no token, 401 with a bad token, 200 for each of the 4 roles, and `GET /lakes` still open without a token. With the controller change reverted, 3 of the 7 fail (no token, bad token, and the service being reached).
+- `src/lakes/lakes.controller.ts`: removed `@Public()` from `GET /lakes-admin`, added `@UseGuards(JwtAuthGuard)` + `@ApiBearerAuth()`, fixed the Swagger summary. The handler is renamed `listLakesAdmin` (it is no longer public) and the class comment notes the auth exceptions; test-merged with every other open PR, no new conflict.
+- `src/lakes/lakes-admin-route.spec.ts` (new, 9 tests): real controller and the same two global guards as `AppModule`, service stubbed. 401 with no token, a bad token, an expired token and a token signed with another secret, 200 for each of the 4 roles, and `GET /lakes` still open without a token. With the controller change reverted, 3 of the 9 fail (no token, bad token, and the service being reached).
 - Checked who calls it: only the three admin pages of the `cryohealth` dashboard (`admin.index.tsx`, `admin.lakes.index.tsx`, `admin.alerts.tsx`) through `fetchLakesAdmin()`, which already sends the logged-in token. Nothing in `cryohealth-app` or `CryoHealth-geo` calls it.
 
 ## Not done / deferred
@@ -18,7 +18,7 @@ Session: lakes-admin-require-auth  Model: claude-sonnet-5-5  Branch: fix/lakes-a
 Review and merge. Order does not matter relative to #21-#30, #28 or #34.
 
 ## Verification status
-tests: 62/62 (55 on main + 7 new)  tsc: clean  lint: eslint and prettier clean on the two files  review: none  qa: not run against a real Postgres or the dashboard
+tests: 64/64 (55 on main + 9 new)  tsc: clean  lint: eslint and prettier clean on the two files  review: none  qa: not run against a real Postgres or the dashboard
 
 ## Resume with
 /uexel:orient
