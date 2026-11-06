@@ -6,7 +6,7 @@ Session: lakes-admin-require-auth  Model: claude-sonnet-5-5  Branch: fix/lakes-a
 
 ## Done this session
 - `src/lakes/lakes.controller.ts`: removed `@Public()` from `GET /lakes-admin`, added `@UseGuards(JwtAuthGuard)` + `@ApiBearerAuth()`, fixed the Swagger summary. The handler is renamed `listLakesAdmin` (it is no longer public) and the class comment notes the auth exceptions; test-merged with every other open PR, no new conflict.
-- `src/lakes/lakes-admin-route.spec.ts` (new, 9 tests): real controller and the same two global guards as `AppModule`, service stubbed. 401 with no token, a bad token, an expired token and a token signed with another secret, 200 for each of the 4 roles, and `GET /lakes` still open without a token. With the controller change reverted, 3 of the 9 fail (no token, bad token, and the service being reached).
+- `src/lakes/lakes-admin-route.spec.ts` (new, 9 tests): real controller and the same two global guards as `AppModule`, service stubbed. 401 with no token, a bad token, an expired token and a token signed with another secret, 200 for each of the 4 roles, and `GET /lakes` still open without a token. With the controller change reverted, 4 of the 9 fail (no token, bad token, expired token, wrong-secret token).
 - Checked who calls it: only the three admin pages of the `cryohealth` dashboard (`admin.index.tsx`, `admin.lakes.index.tsx`, `admin.alerts.tsx`) through `fetchLakesAdmin()`, which already sends the logged-in token. Nothing in `cryohealth-app` or `CryoHealth-geo` calls it.
 
 ## Not done / deferred
