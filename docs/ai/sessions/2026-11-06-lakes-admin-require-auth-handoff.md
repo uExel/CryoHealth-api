@@ -1,5 +1,5 @@
 # HANDOFF — CryoHealth-api — 2026-11-06
-Session: lakes-admin-require-auth  Model: claude-sonnet-5-5  Branch: fix/lakes-admin-require-auth  Goal: none  Task: stop `GET /lakes-admin` answering without a login
+Session: lakes-admin-require-auth  Model: claude-sonnet-5-5  Branch: fix/lakes-admin-require-auth  Goal: #35  Task: stop `GET /lakes-admin` answering without a login
 
 ## State
 `GET /lakes-admin` was marked `@Public()` although its name and summary say "admin". It now needs a valid JWT; any role is accepted, the same as `GET /admin/lakes`. Not merged, not deployed. Branched from `main` (529129d).
