@@ -74,10 +74,12 @@ npm run migration:generate | migration:run | migration:revert
   CryoHealth-geo's `CRYOHEALTH_API_KEY`. The `cryohealth` dashboard's `JWT_SECRET` must
   also exactly match this repo's — both mint/verify tokens against the same secret, so a
   token issued by either service is valid on the other.
-- **Lake data is a deliberately small, citation-verified subset** (6 lakes, not the
-  eventual 25+): every `Lake` row requires `source`/`sourceUrl`; nothing is padded with
-  fabricated coordinates to hit a numeric target — see
-  [docs/ai/decisions/0002-lake-data-provenance.md](docs/ai/decisions/0002-lake-data-provenance.md).
+- **Lake data is citation-verified, never padded** (31 lakes: 6 hand-cited named lakes +
+  25 inventory-derived from open datasets by `scripts/data/extract_hma_lakes.py`): every `Lake`
+  row requires `source`/`sourceUrl`; nothing uses fabricated coordinates to hit a numeric
+  target. The inventory lakes are unnamed (`Unnamed glacial lake GL_…`), not the GLOF-II
+  priority list — see [ADR 0002](docs/ai/decisions/0002-lake-data-provenance.md) and
+  [ADR 0004](docs/ai/decisions/0004-hma-inventory-lakes.md).
 - **Offline-first sync**: `chw_cases.clientCaseId` is the idempotency key for
   conflict-safe upsert from devices; `sync_log` records every device sync.
 - **Reproducibility**: every observation and hazard score carries a `run_id`; scores keep

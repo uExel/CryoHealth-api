@@ -1,5 +1,10 @@
 # ADR 0002 — Lake data provenance: verified subset now, not fabricated 25
 
+> **Update 2026-11:** the ≥25 count is now met with inventory-derived lakes from open
+> datasets — see [ADR 0004](0004-hma-inventory-lakes.md). The rule below still holds: the six
+> named lakes stay hand-cited, and the named GLOF-II shortlist is still tracked in
+> CryoHealth-geo#4.
+
 ## Context
 Task #5's definition of done: seed the ICIMOD HKH inventory ∩ GLOF-II priority list,
 ≥25 lakes, real names/coordinates/dam type. On investigation, that specific dataset is
