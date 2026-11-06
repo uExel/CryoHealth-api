@@ -14,6 +14,10 @@ const MAX_PAGE = 100;
 const ADMIN_LIMIT = 200;
 const HAZARD_SCORES_LIMIT = 120;
 
+/** `exposure.method` CryoHealth-geo writes when the population was summed along the
+ *  D8 downstream flow path (anything else is the radial-buffer fallback or an old row). */
+const FLOW_PATH_METHOD = 'd8_flowline_corridor';
+
 /**
  * lakes.current_risk_score and lakes.downstream_population are NOT NULL DEFAULT 0
  * and nothing keeps them up to date, so a 0 there means "no data", not "no risk".
@@ -22,8 +26,14 @@ const HAZARD_SCORES_LIMIT = 120;
  */
 const latestScoreSql = (alias: string) =>
   `(SELECT h.score FROM hazard_scores h WHERE h."lakeId" = ${alias}.id ORDER BY h."computedAt" DESC LIMIT 1)`;
+/**
+ * A curated figure on the lake row wins when there is one; otherwise the flow-path
+ * population from the newest hazard score, but only when that score was really
+ * flow-routed (a radial-buffer fallback is an estimate and is never shown as the
+ * downstream population). NULL when neither exists.
+ */
 const knownPopulationSql = (alias: string) =>
-  `NULLIF(${alias}.downstream_population, 0)`;
+  `COALESCE(NULLIF(${alias}.downstream_population, 0), (SELECT CASE WHEN fp.components->'exposure'->>'method' = '${FLOW_PATH_METHOD}' THEN ROUND((fp.components->'exposure'->>'population_along_corridor')::numeric)::int END FROM hazard_scores fp WHERE fp."lakeId" = ${alias}.id ORDER BY fp."computedAt" DESC LIMIT 1))`;
 
 export interface HotLakeRow {
   id: string;
@@ -154,6 +164,28 @@ export interface ExposureComponent {
   buffer_shape?: string;
   population_within_buffer?: number;
   note?: string;
+  /** 'd8_flowline_corridor' (flow-routed) or 'radial_buffer_fallback'; absent on old rows. */
+  method?: string;
+  population_along_corridor?: number;
+  corridor_km?: number;
+  corridor_half_width_m?: number;
+  max_km?: number;
+  outlet_lon?: number;
+  outlet_lat?: number;
+  /** DEM elevation at the flowline's start cell; a peak or ridge here means a bad outlet. */
+  start_elevation_m?: number;
+}
+
+/** The `confidence` block the geo service stores in HazardScore.components: a heuristic
+ *  data-quality number (input coverage x observation freshness), not a statistical
+ *  confidence. Absent on scores computed before it existed. */
+export interface ConfidenceComponent {
+  value?: number;
+  method?: string;
+  input_coverage?: number;
+  freshness?: number;
+  latest_observation_age_days?: number | null;
+  note?: string;
 }
 
 export interface LatestScoreRow {
@@ -162,6 +194,7 @@ export interface LatestScoreRow {
   tier: string;
   computedAt: Date;
   exposure: ExposureComponent | null;
+  confidence: ConfidenceComponent | null;
   rawInputs: RawInputs | null;
   weights: Record<string, number> | null;
 }
@@ -191,8 +224,39 @@ export interface CurrentArea {
   capturedAt: Date;
 }
 
-/** A rough WorldPop figure, not a validated downstream population. See
- *  downstreamPopulation for the curated number (null until a real source exists). */
+/** WorldPop people summed along the D8 downstream flow path from the lake outlet (a
+ *  1 km wide corridor, up to max_km). Computed by CryoHealth-geo; not a census count and
+ *  not validated against a historical flood footprint (see geo's HAZARD_METHODOLOGY). */
+export interface DownstreamPopulationFlowPath {
+  count: number;
+  method: typeof FLOW_PATH_METHOD;
+  corridorKm: number | null;
+  corridorHalfWidthM: number | null;
+  maxKm: number | null;
+  /** DEM elevation (m) where the flowline starts; a very high value means the outlet
+   *  point is not at a lake and the figure should not be trusted. */
+  startElevationM: number | null;
+  source: string | null;
+  note: string;
+  computedAt: Date;
+}
+
+/** Where `downstreamPopulation` came from: a figure an admin entered on the lake
+ *  ('curated') or the flow-path computation ('d8_flowline_corridor'). */
+export type DownstreamPopulationSource = 'curated' | typeof FLOW_PATH_METHOD;
+
+/** Heuristic data-quality number for the newest score, see ConfidenceComponent. */
+export interface ScoreConfidenceDetail {
+  method: string | null;
+  inputCoverage: number | null;
+  freshness: number | null;
+  latestObservationAgeDays: number | null;
+  note: string | null;
+}
+
+/** A rough WorldPop figure, not a validated downstream population. Only given when the
+ *  score was NOT flow-routed (radial-buffer fallback or an older row). See
+ *  downstreamPopulation / downstreamPopulationFlowPath for the flow-routed number. */
 export interface DownstreamPopulationEstimate {
   count: number;
   bufferKm: number | null;
@@ -237,6 +301,13 @@ export function inputCoverage(
 
 const ESTIMATE_NOTE =
   'Rough estimate: WorldPop people within a straight-line square buffer of the lake, not flow-path routed.';
+const FALLBACK_ESTIMATE_NOTE =
+  'Rough estimate: WorldPop people within a straight-line square buffer of the lake. Flow-path routing failed for this score, so this is not flow-path routed.';
+const FLOW_PATH_NOTE =
+  'WorldPop people along the modelled downstream flow path from the lake outlet (D8 on the Copernicus GLO-30 DEM, 1 km wide corridor). A model estimate, not a census count, and not validated against a historical flood footprint.';
+
+const isNum = (v: unknown): v is number =>
+  typeof v === 'number' && Number.isFinite(v);
 
 @Injectable()
 export class LakesService {
@@ -277,17 +348,18 @@ export class LakesService {
   }
 
   /**
-   * Adds currentScore, currentArea, downstreamPopulationEstimate and inputCoverage to each lake. They
-   * come from the newest HazardScore and Observation rows, so those tables stay the
-   * single source of truth. A lake with no score, scene or exposure yet gets null,
-   * never a made-up value.
+   * Adds currentScore, currentArea, downstreamPopulation (+ its source and the flow-path
+   * detail), downstreamPopulationEstimate, confidence (+ detail) and inputCoverage to
+   * each lake. They come from the newest HazardScore and Observation rows, so those
+   * tables stay the single source of truth. A lake with no score, scene or exposure yet
+   * gets null, never a made-up value.
    */
   private async withLatestReadings(lakes: Lake[]) {
     if (lakes.length === 0) return [];
     const ids = lakes.map((l) => l.id);
     const [scoreRows, areaRows] = await Promise.all([
       this.dataSource.query(
-        `SELECT DISTINCT ON ("lakeId") "lakeId", score, tier, "computedAt", components->'exposure' AS exposure, components->'raw_inputs' AS "rawInputs", components->'weights' AS weights FROM hazard_scores WHERE "lakeId" = ANY($1) ORDER BY "lakeId", "computedAt" DESC`,
+        `SELECT DISTINCT ON ("lakeId") "lakeId", score, tier, "computedAt", components->'exposure' AS exposure, components->'confidence' AS confidence, components->'raw_inputs' AS "rawInputs", components->'weights' AS weights FROM hazard_scores WHERE "lakeId" = ANY($1) ORDER BY "lakeId", "computedAt" DESC`,
         [ids],
       ) as Promise<LatestScoreRow[]>,
       this.dataSource.query(
@@ -307,26 +379,76 @@ export class LakesService {
       const currentArea: CurrentArea | null = a
         ? { areaKm2: Number(a.areaKm2), capturedAt: a.capturedAt }
         : null;
-      const count = s?.exposure?.population_within_buffer;
-      const downstreamPopulationEstimate: DownstreamPopulationEstimate | null =
-        s && typeof count === 'number'
+      const exposure = s?.exposure ?? null;
+      // Flow-routed only when geo says so AND gives the number; a radial-buffer fallback
+      // or an old row (no `method`) is an estimate and never the downstream population.
+      const flowCount = exposure?.population_along_corridor;
+      const downstreamPopulationFlowPath: DownstreamPopulationFlowPath | null =
+        s && exposure?.method === FLOW_PATH_METHOD && isNum(flowCount)
           ? {
-              count,
-              bufferKm: s.exposure?.buffer_km ?? null,
-              bufferShape: s.exposure?.buffer_shape ?? null,
-              source: s.exposure?.source ?? null,
-              note: ESTIMATE_NOTE,
+              count: Math.round(flowCount),
+              method: FLOW_PATH_METHOD,
+              corridorKm: exposure.corridor_km ?? null,
+              corridorHalfWidthM: exposure.corridor_half_width_m ?? null,
+              maxKm: exposure.max_km ?? null,
+              startElevationM: exposure.start_elevation_m ?? null,
+              source: exposure.source ?? null,
+              note: FLOW_PATH_NOTE,
               computedAt: s.computedAt,
+            }
+          : null;
+      const bufferCount = exposure?.population_within_buffer;
+      const downstreamPopulationEstimate: DownstreamPopulationEstimate | null =
+        s &&
+        !downstreamPopulationFlowPath &&
+        exposure?.method !== FLOW_PATH_METHOD &&
+        isNum(bufferCount)
+          ? {
+              count: bufferCount,
+              bufferKm: exposure?.buffer_km ?? null,
+              bufferShape: exposure?.buffer_shape ?? null,
+              source: exposure?.source ?? null,
+              note:
+                exposure?.method === 'radial_buffer_fallback'
+                  ? FALLBACK_ESTIMATE_NOTE
+                  : ESTIMATE_NOTE,
+              computedAt: s.computedAt,
+            }
+          : null;
+      // A figure an admin entered on the lake wins; otherwise the flow-path number.
+      const curated = lake.downstreamPopulation || null;
+      const downstreamPopulationSource: DownstreamPopulationSource | null =
+        curated !== null
+          ? 'curated'
+          : downstreamPopulationFlowPath
+            ? FLOW_PATH_METHOD
+            : null;
+      const conf = s?.confidence ?? null;
+      const confidence = conf && isNum(conf.value) ? conf.value : null;
+      const confidenceDetail: ScoreConfidenceDetail | null =
+        confidence !== null && conf
+          ? {
+              method: conf.method ?? null,
+              inputCoverage: conf.input_coverage ?? null,
+              freshness: conf.freshness ?? null,
+              latestObservationAgeDays:
+                conf.latest_observation_age_days ?? null,
+              note: conf.note ?? null,
             }
           : null;
       return {
         ...lake,
         currentScore,
         currentArea,
+        downstreamPopulationFlowPath,
         downstreamPopulationEstimate,
+        confidence,
+        confidenceDetail,
         inputCoverage: s ? inputCoverage(s.rawInputs, s.weights) : null,
         currentRiskScore: currentScore?.score ?? null,
-        downstreamPopulation: lake.downstreamPopulation || null,
+        downstreamPopulation:
+          curated ?? downstreamPopulationFlowPath?.count ?? null,
+        downstreamPopulationSource,
       };
     });
   }
