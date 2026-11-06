@@ -13,7 +13,12 @@ import {
   UseGuards,
   BadRequestException,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiQuery,
+  ApiTags,
+} from '@nestjs/swagger';
 import { Public } from '../common/decorators/public.decorator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { LakesService } from './lakes.service';
@@ -65,6 +70,25 @@ export class LakesController {
   @ApiOperation({ summary: 'Lake detail with history, alerts, glaciers' })
   lakeDetail(@Param('id', ParseUUIDPipe) id: string) {
     return this.lakes.lakeDetail(id);
+  }
+
+  @Public()
+  @Get('observations')
+  @ApiOperation({
+    summary:
+      'Open Data: lake area observations across all lakes (paginated, newest first)',
+  })
+  @ApiQuery({
+    name: 'lakeId',
+    required: false,
+    description: 'Only observations for this lake',
+  })
+  allObservations(
+    @Query('lakeId', new ParseUUIDPipe({ optional: true })) lakeId?: string,
+    @Query('page', new ParseIntPipe({ optional: true })) page?: number,
+    @Query('pageSize', new ParseIntPipe({ optional: true })) pageSize?: number,
+  ) {
+    return this.lakes.listAllObservations(lakeId, page, pageSize);
   }
 
   @Public()
