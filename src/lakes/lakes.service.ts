@@ -186,14 +186,29 @@ export class LakesService {
   }
 
   async listObservations(lakeId: string, page = 1, pageSize = 100) {
-    const take = Math.min(pageSize, 500);
+    return this.pageObservations({ lakeId }, page, pageSize);
+  }
+
+  /** Open Data API: every observation across all lakes, newest first, optionally
+   *  narrowed to one lake. Same paging contract as {@link listObservations}. */
+  async listAllObservations(lakeId?: string, page = 1, pageSize = 100) {
+    return this.pageObservations(lakeId ? { lakeId } : {}, page, pageSize);
+  }
+
+  private async pageObservations(
+    where: { lakeId?: string },
+    page: number,
+    pageSize: number,
+  ) {
+    const take = Math.min(Math.max(pageSize, 1), 500);
+    const safePage = Math.max(page, 1);
     const [items, total] = await this.observationRepo.findAndCount({
-      where: { lakeId },
+      where,
       order: { capturedAt: 'DESC' },
-      skip: (page - 1) * take,
+      skip: (safePage - 1) * take,
       take,
     });
-    return { items, total, page, pageSize: take };
+    return { items, total, page: safePage, pageSize: take };
   }
 
   async lakeDetail(id: string) {
