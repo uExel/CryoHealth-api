@@ -71,6 +71,30 @@ describe('GET /lakes-admin requires a login', () => {
     expect(lakes.listAdmin).not.toHaveBeenCalled();
   });
 
+  it('returns 401 for an expired token', async () => {
+    const expired = jwt.sign(
+      { sub: 'user-admin', role: 'cryohealth_admin', name: 'admin' },
+      { expiresIn: -60 },
+    );
+    await request(http())
+      .get('/lakes-admin')
+      .set('Authorization', `Bearer ${expired}`)
+      .expect(401);
+    expect(lakes.listAdmin).not.toHaveBeenCalled();
+  });
+
+  it('returns 401 for a token signed with a different secret', async () => {
+    const forged = jwt.sign(
+      { sub: 'user-admin', role: 'cryohealth_admin', name: 'admin' },
+      { secret: 'some-other-secret' },
+    );
+    await request(http())
+      .get('/lakes-admin')
+      .set('Authorization', `Bearer ${forged}`)
+      .expect(401);
+    expect(lakes.listAdmin).not.toHaveBeenCalled();
+  });
+
   it.each(ROLES)('lets a logged-in %s through (any role)', async (role) => {
     await request(http())
       .get('/lakes-admin')

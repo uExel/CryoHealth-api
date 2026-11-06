@@ -19,7 +19,10 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { LakesService } from './lakes.service';
 import type { Request } from 'express';
 
-/** Open Data API: read-only, no auth — safety information is never gated (PRD R1). */
+/**
+ * Open Data API: read-only, no auth — safety information is never gated (PRD R1).
+ * Exceptions: `GET /lakes-admin` and the `/admin/*` routes need a JWT.
+ */
 @ApiTags('lakes')
 @Controller()
 export class LakesController {
@@ -50,7 +53,7 @@ export class LakesController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Admin-shaped lake list (auth required, any role)' })
-  listLakesAdminPublic() {
+  listLakesAdmin() {
     return this.lakes.listAdmin();
   }
 
