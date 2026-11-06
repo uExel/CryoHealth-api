@@ -35,6 +35,7 @@ describe('LakesService flow-path population and confidence', () => {
     max_km: 50,
     outlet_lon: 74.552,
     outlet_lat: 36.421,
+    start_elevation_m: 6252,
     population_along_corridor: 18432.4,
     // geo keeps this alias for old readers; it must not be shown as a square-buffer estimate
     population_within_buffer: 18432.4,
@@ -80,6 +81,7 @@ describe('LakesService flow-path population and confidence', () => {
         corridorKm: 41.37,
         corridorHalfWidthM: 500,
         maxKm: 50,
+        startElevationM: 6252,
         source: 'worldpop_pak_2025_constrained_100m',
         note: expect.stringContaining('not a census count'),
         computedAt,

@@ -172,6 +172,8 @@ export interface ExposureComponent {
   max_km?: number;
   outlet_lon?: number;
   outlet_lat?: number;
+  /** DEM elevation at the flowline's start cell; a peak or ridge here means a bad outlet. */
+  start_elevation_m?: number;
 }
 
 /** The `confidence` block the geo service stores in HazardScore.components: a heuristic
@@ -231,6 +233,9 @@ export interface DownstreamPopulationFlowPath {
   corridorKm: number | null;
   corridorHalfWidthM: number | null;
   maxKm: number | null;
+  /** DEM elevation (m) where the flowline starts; a very high value means the outlet
+   *  point is not at a lake and the figure should not be trusted. */
+  startElevationM: number | null;
   source: string | null;
   note: string;
   computedAt: Date;
@@ -386,6 +391,7 @@ export class LakesService {
               corridorKm: exposure.corridor_km ?? null,
               corridorHalfWidthM: exposure.corridor_half_width_m ?? null,
               maxKm: exposure.max_km ?? null,
+              startElevationM: exposure.start_elevation_m ?? null,
               source: exposure.source ?? null,
               note: FLOW_PATH_NOTE,
               computedAt: s.computedAt,
