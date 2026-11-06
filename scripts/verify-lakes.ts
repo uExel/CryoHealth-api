@@ -1,5 +1,5 @@
 /**
- * Verifies data integrity, not an arbitrary headcount. Task #5's original DoD said
+ * Verifies data integrity first, headcount second. Task #5's original DoD said
  * "asserts count >= 25" — that number assumed access to the full ICIMOD/GLOF-II
  * geodatabase, which turned out to be institutionally gated, not openly downloadable
  * (see src/lakes/data/lakes.seed-data.ts and docs/ai/decisions/0002). Hard-failing CI
@@ -10,13 +10,25 @@
 import 'reflect-metadata';
 import dataSource from '../src/database/data-source';
 
-type Row = { id: string; name: string; source: string | null; valid: boolean; lon: number; lat: number };
+type Row = {
+  id: string;
+  name: string;
+  source: string | null;
+  sourceUrl: string | null;
+  districtId: string | null;
+  valid: boolean;
+  lon: number;
+  lat: number;
+};
+
+const TARGET = 25;
 
 async function main() {
   await dataSource.initialize();
   try {
     const rows: Row[] = await dataSource.query(`
-      SELECT id, name, source, ST_IsValid(geom) AS valid, ST_X(geom) AS lon, ST_Y(geom) AS lat
+      SELECT id, name, source, "sourceUrl", district_id AS "districtId",
+             ST_IsValid(geom) AS valid, ST_X(geom) AS lon, ST_Y(geom) AS lat
       FROM lakes
     `);
 
@@ -28,6 +40,8 @@ async function main() {
     const problems: string[] = [];
     for (const r of rows) {
       if (!r.source || !r.source.trim()) problems.push(`${r.name}: missing source citation`);
+      if (!r.sourceUrl || !r.sourceUrl.trim()) problems.push(`${r.name}: missing source URL`);
+      if (!r.districtId) problems.push(`${r.name}: not linked to a district (district_id is null)`);
       if (!r.valid) problems.push(`${r.name}: invalid geometry`);
       if (r.lon === 0 && r.lat === 0) problems.push(`${r.name}: geometry at (0,0) — null island, almost certainly a placeholder`);
     }
@@ -40,10 +54,12 @@ async function main() {
     }
 
     console.log('OK: every lake has a cited source and a valid, non-null-island geometry.');
-    if (rows.length < 25) {
+    if (rows.length >= TARGET) {
+      console.log(`OK: ${rows.length}/${TARGET} lakes — target met.`);
+    } else {
       console.log(
-        `NOTE: ${rows.length}/25 — task #5's original target. Tracked gap, not a silent shortfall: ` +
-          'the remaining lakes need the actual ICIMOD/GLOF-II geodatabase (docs/ai/decisions/0002).',
+        `NOTE: ${rows.length}/${TARGET} — a tracked gap, not a silent shortfall. Run \`npm run seed:lakes\`; ` +
+          'see docs/ai/decisions/0002 and 0004.',
       );
     }
   } finally {
