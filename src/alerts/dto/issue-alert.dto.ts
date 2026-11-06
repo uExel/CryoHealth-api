@@ -7,9 +7,7 @@ import {
   IsString,
   IsUUID,
 } from 'class-validator';
-import type { Tier } from '../../common/types/tier.type';
-
-const TIERS: Tier[] = ['normal', 'watch', 'high', 'critical'];
+import { TIERS, type Tier } from '../../common/types/tier.type';
 
 export class IssueAlertDto {
   @IsOptional() @IsUUID() lakeId?: string;

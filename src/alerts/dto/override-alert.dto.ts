@@ -1,7 +1,5 @@
 import { IsIn, IsNotEmpty, IsOptional, IsString } from 'class-validator';
-import type { Tier } from '../../common/types/tier.type';
-
-const TIERS: Tier[] = ['normal', 'watch', 'high', 'critical'];
+import { TIERS, type Tier } from '../../common/types/tier.type';
 
 /** Exactly one of tier / clear should be set — validated in the service, not here,
  *  since class-validator doesn't express "exactly one of" cleanly without a custom
