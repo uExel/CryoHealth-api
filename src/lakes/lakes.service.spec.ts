@@ -34,6 +34,30 @@ describe('LakesService', () => {
     );
   });
 
+  it('lists observations across all lakes when no lakeId is given', async () => {
+    obsRepo.findAndCount.mockResolvedValue([[], 0]);
+    await service.listAllObservations(undefined, 2, 50);
+    expect(obsRepo.findAndCount).toHaveBeenCalledWith({
+      where: {},
+      order: { capturedAt: 'DESC' },
+      skip: 50,
+      take: 50,
+    });
+  });
+
+  it('filters all-observations by lakeId and clamps bad paging', async () => {
+    obsRepo.findAndCount.mockResolvedValue([[], 0]);
+    const res = await service.listAllObservations('lake-1', -3, 0);
+    expect(obsRepo.findAndCount).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { lakeId: 'lake-1' },
+        skip: 0,
+        take: 1,
+      }),
+    );
+    expect(res).toMatchObject({ page: 1, pageSize: 1 });
+  });
+
   it('404s an unknown lake id', async () => {
     lakesRepo.findOne.mockResolvedValue(null);
     await expect(
