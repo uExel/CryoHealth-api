@@ -9,6 +9,7 @@ export class UpdateAlertDto {
   @IsOptional() @IsString() @IsNotEmpty() body?: string;
   @IsOptional() @IsIn(TIERS) tier?: Tier;
   @IsOptional() @IsString() estimatedWindow?: string | null;
+  @IsOptional() @IsString() @IsNotEmpty() reason?: string;
 }
 
 /** Clear (PATCH /admin/alerts/:id) — a human-auditable reason is mandatory. */

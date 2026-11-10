@@ -56,6 +56,7 @@ export class UsersService {
       role: user.role,
       lhw_id: user.lhwId ?? null,
       phone: user.phone ?? null,
+      email: user.email ?? null,
       facility_id: user.facilityId ?? null,
       facility_name: user.facility_name ?? user.facility?.name ?? null,
       active: user.active,
@@ -97,6 +98,7 @@ export class UsersService {
       const user = repo.create({
         name: dto.name,
         role: dto.role,
+        email: dto.email?.trim().toLowerCase() || undefined,
         lhwId: dto.lhwId || undefined,
         phone: dto.phone || undefined,
         facilityId: dto.facilityId || undefined,
@@ -110,7 +112,7 @@ export class UsersService {
       } catch (err) {
         if (this.isUniqueViolation(err)) {
           throw new ConflictException(
-            'A user with this LHW ID or phone number already exists.',
+            'A user with this email, LHW ID, or phone number already exists.',
           );
         }
         throw err;
@@ -129,7 +131,11 @@ export class UsersService {
   }
 
   async update(id: string, dto: UpdateUserDto, actorId: string) {
-    if (dto.role === undefined && dto.active === undefined) {
+    if (
+      dto.role === undefined &&
+      dto.active === undefined &&
+      dto.email === undefined
+    ) {
       throw new BadRequestException('No fields to update');
     }
 
@@ -148,6 +154,7 @@ export class UsersService {
 
       const nextRole = dto.role ?? before.role;
       const nextActive = dto.active ?? before.active;
+      const previousEmail = before.email;
 
       const dropsAnAdmin =
         before.role === 'cryohealth_admin' &&
@@ -171,6 +178,9 @@ export class UsersService {
 
       if (dto.role !== undefined) before.role = dto.role;
       if (dto.active !== undefined) before.active = dto.active;
+      if (dto.email !== undefined) {
+        before.email = dto.email?.trim().toLowerCase() || null;
+      }
 
       let after: User;
       try {
@@ -178,7 +188,7 @@ export class UsersService {
       } catch (err) {
         if (this.isUniqueViolation(err)) {
           throw new ConflictException(
-            'A user with this LHW ID or phone number already exists.',
+            'A user with this email, LHW ID, or phone number already exists.',
           );
         }
         throw err;
@@ -198,6 +208,17 @@ export class UsersService {
           id,
           { changed: { active: { from: before.active, to: after.active } } },
         );
+      }
+
+      if (previousEmail !== after.email) {
+        await this.audit(manager, actorId, 'user.email_change', id, {
+          changed: {
+            email: {
+              from: previousEmail ?? null,
+              to: after.email ?? null,
+            },
+          },
+        });
       }
 
       return this.formatUser(after);

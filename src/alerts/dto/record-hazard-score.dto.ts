@@ -1,4 +1,5 @@
 import {
+  IsDateString,
   IsIn,
   IsNotEmpty,
   IsNumber,
@@ -21,4 +22,7 @@ export class RecordHazardScoreDto {
   @IsIn(TIERS) tier: Tier;
   @IsObject() components: Record<string, unknown>;
   @IsOptional() @IsString() computedAt?: string;
+  @IsOptional() @IsDateString() windowStart?: string;
+  @IsOptional() @IsDateString() windowEnd?: string;
+  @IsOptional() @IsString() estimatedWindow?: string;
 }
