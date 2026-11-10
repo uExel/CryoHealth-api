@@ -34,25 +34,6 @@ describe('LakesService', () => {
     );
   });
 
-  it('404s an unknown lake id', async () => {
-    lakesRepo.findOne.mockResolvedValue(null);
-    await expect(
-      service.byId('7c9e2b4a-1f6d-4a8e-9b3c-5e0d8a2f7b1c'),
-    ).rejects.toBeInstanceOf(NotFoundException);
-  });
-
-  it('caps observation pageSize at 500 and orders newest first', async () => {
-    obsRepo.findAndCount.mockResolvedValue([[], 0]);
-    await service.listObservations('lake-1', 1, 10_000);
-    expect(obsRepo.findAndCount).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { lakeId: 'lake-1' },
-        order: { capturedAt: 'DESC' },
-        take: 500,
-      }),
-    );
-  });
-
   it('lists observations across all lakes when no lakeId is given', async () => {
     obsRepo.findAndCount.mockResolvedValue([[], 0]);
     await service.listAllObservations(undefined, 2, 50);
@@ -75,5 +56,24 @@ describe('LakesService', () => {
       }),
     );
     expect(res).toMatchObject({ page: 1, pageSize: 1 });
+  });
+
+  it('404s an unknown lake id', async () => {
+    lakesRepo.findOne.mockResolvedValue(null);
+    await expect(
+      service.byId('7c9e2b4a-1f6d-4a8e-9b3c-5e0d8a2f7b1c'),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('caps observation pageSize at 500 and orders newest first', async () => {
+    obsRepo.findAndCount.mockResolvedValue([[], 0]);
+    await service.listObservations('lake-1', 1, 10_000);
+    expect(obsRepo.findAndCount).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { lakeId: 'lake-1' },
+        order: { capturedAt: 'DESC' },
+        take: 500,
+      }),
+    );
   });
 });
