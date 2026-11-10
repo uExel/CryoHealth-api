@@ -24,7 +24,7 @@ The first run downloads and builds everything, so it takes a few minutes. It sta
 order:
 
 1. `db`: PostgreSQL 16 + PostGIS.
-2. `migrate`: creates the tables, then loads the 6 real, cited lakes and the test logins.
+2. `migrate`: creates the tables, then loads the seeded, cited lakes (every row carries its source) and the test logins.
    It runs once and exits (that is normal).
 3. `api`: the API, on <http://localhost:3000>.
 
@@ -42,7 +42,7 @@ Running `up` again on an existing database is safe.
 
 ```bash
 curl http://localhost:3000/health        # {"status":"ok","database":"up"}
-curl http://localhost:3000/lakes         # the 6 seeded lakes
+curl http://localhost:3000/lakes         # the seeded lakes (count depends on the seed; see scripts/verify-lakes.ts)
 ```
 
 Interactive API documentation (Swagger): <http://localhost:3000/docs>
