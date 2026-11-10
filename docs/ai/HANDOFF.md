@@ -21,6 +21,7 @@ Each session's full handoff (what was done, how it was checked, what is left) is
 - Found a second, non-docs collision: #22 and #26 both append a new test at the end of `src/lakes/lakes.service.spec.ts`. Moved #22's one test up the file (unchanged, only its position) so the two edit different places.
 - Merging the six into `main` was tried in many orders (every ordered pair, plus a sample of full orders): no conflict. All six together pass `tsc` and 127 tests.
 - Saved every session's handoff and the push-notifications handoff as separate files under `docs/ai/sessions/` so nothing was lost.
+- README (#30) no longer says "6" lakes: the number changes when #34 (25 more inventory-derived lakes) merges, so the wording no longer depends on merge order. Details in `sessions/2026-11-10-readme-seeded-lakes-wording-handoff.md`.
 
 ## Not done / deferred
 - **Before deploying `main` (PR #27):** the server's `/opt/cryohealth/.env` needs `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL` and `FIREBASE_PRIVATE_KEY`, and `docker-compose.prod.yml` (not in the repo) must load it with `env_file:`. Production refuses to boot without all three. This was marked blocking in the push session and is still unconfirmed.
