@@ -14,6 +14,17 @@ const MAX_PAGE = 100;
 const ADMIN_LIMIT = 200;
 const HAZARD_SCORES_LIMIT = 120;
 
+/**
+ * lakes.current_risk_score and lakes.downstream_population are NOT NULL DEFAULT 0
+ * and nothing keeps them up to date, so a 0 there means "no data", not "no risk".
+ * These two fragments give the real value or NULL instead. `alias` is the lakes table
+ * alias used in the query.
+ */
+const latestScoreSql = (alias: string) =>
+  `(SELECT h.score FROM hazard_scores h WHERE h."lakeId" = ${alias}.id ORDER BY h."computedAt" DESC LIMIT 1)`;
+const knownPopulationSql = (alias: string) =>
+  `NULLIF(${alias}.downstream_population, 0)`;
+
 export interface HotLakeRow {
   id: string;
   name: string;
@@ -136,6 +147,30 @@ export interface DepsCountRow {
   n: number;
 }
 
+export interface LatestScoreRow {
+  lakeId: string;
+  score: string;
+  tier: string;
+  computedAt: Date;
+}
+
+export interface LatestAreaRow {
+  lakeId: string;
+  areaKm2: string;
+  capturedAt: Date;
+}
+
+export interface CurrentScore {
+  score: number;
+  tier: string;
+  computedAt: Date;
+}
+
+export interface CurrentArea {
+  areaKm2: number;
+  capturedAt: Date;
+}
+
 @Injectable()
 export class LakesService {
   constructor(
@@ -165,24 +200,66 @@ export class LakesService {
 
   async list(page = 1, pageSize = 50) {
     const take = Math.min(pageSize, MAX_PAGE);
-    const [items, total] = await this.lakes.findAndCount({
+    const [lakes, total] = await this.lakes.findAndCount({
       order: { name: 'ASC' },
       skip: (page - 1) * take,
       take,
     });
+    const items = await this.withLatestReadings(lakes);
     return { items, total, page, pageSize: take };
+  }
+
+  /**
+   * Adds currentScore and currentArea to each lake. They come from the newest
+   * HazardScore and Observation rows, so those tables stay the single source of
+   * truth. A lake with no score or no scene yet gets null, never a made-up value.
+   */
+  private async withLatestReadings(lakes: Lake[]) {
+    if (lakes.length === 0) return [];
+    const ids = lakes.map((l) => l.id);
+    const [scoreRows, areaRows] = await Promise.all([
+      this.dataSource.query(
+        `SELECT DISTINCT ON ("lakeId") "lakeId", score, tier, "computedAt" FROM hazard_scores WHERE "lakeId" = ANY($1) ORDER BY "lakeId", "computedAt" DESC`,
+        [ids],
+      ) as Promise<LatestScoreRow[]>,
+      this.dataSource.query(
+        `SELECT DISTINCT ON ("lakeId") "lakeId", "areaKm2", "capturedAt" FROM observations WHERE "lakeId" = ANY($1) ORDER BY "lakeId", "capturedAt" DESC`,
+        [ids],
+      ) as Promise<LatestAreaRow[]>,
+    ]);
+    const scores = new Map(scoreRows.map((r) => [r.lakeId, r]));
+    const areas = new Map(areaRows.map((r) => [r.lakeId, r]));
+
+    return lakes.map((lake) => {
+      const s = scores.get(lake.id);
+      const a = areas.get(lake.id);
+      const currentScore: CurrentScore | null = s
+        ? { score: Number(s.score), tier: s.tier, computedAt: s.computedAt }
+        : null;
+      const currentArea: CurrentArea | null = a
+        ? { areaKm2: Number(a.areaKm2), capturedAt: a.capturedAt }
+        : null;
+      return {
+        ...lake,
+        currentScore,
+        currentArea,
+        currentRiskScore: currentScore?.score ?? null,
+        downstreamPopulation: lake.downstreamPopulation || null,
+      };
+    });
   }
 
   async listHotLakes(): Promise<HotLakeRow[]> {
     return await this.dataSource.query(
-      `SELECT id, name, upper("currentTier"::text) AS current_tier, current_risk_score, downstream_population, "updatedAt" AS last_updated FROM lakes WHERE "currentTier" IN ('high', 'critical') ORDER BY current_risk_score DESC NULLS LAST`,
+      `SELECT l.id, l.name, upper(l."currentTier"::text) AS current_tier, ${latestScoreSql('l')} AS current_risk_score, ${knownPopulationSql('l')} AS downstream_population, l."updatedAt" AS last_updated FROM lakes l WHERE l."currentTier" IN ('high', 'critical') ORDER BY current_risk_score DESC NULLS LAST`,
     );
   }
 
   async byId(id: string) {
     const lake = await this.lakes.findOne({ where: { id } });
     if (!lake) throw new NotFoundException('No such lake');
-    return lake;
+    const [withReadings] = await this.withLatestReadings([lake]);
+    return withReadings;
   }
 
   async listObservations(lakeId: string, page = 1, pageSize = 100) {
@@ -198,7 +275,7 @@ export class LakesService {
 
   async lakeDetail(id: string) {
     const lakeRows = await this.dataSource.query(
-      `SELECT l.*, ST_Y(l.geom::geometry) AS lat, ST_X(l.geom::geometry) AS lng, upper(l."currentTier"::text) AS current_tier, l."elevationM" AS elevation_m, d.name AS district_name FROM lakes l LEFT JOIN districts d ON d.id = l.district_id WHERE l.id = $1 LIMIT 1`,
+      `SELECT l.*, ${latestScoreSql('l')} AS current_risk_score, ${knownPopulationSql('l')} AS downstream_population, ST_Y(l.geom::geometry) AS lat, ST_X(l.geom::geometry) AS lng, upper(l."currentTier"::text) AS current_tier, l."elevationM" AS elevation_m, d.name AS district_name FROM lakes l LEFT JOIN districts d ON d.id = l.district_id WHERE l.id = $1 LIMIT 1`,
       [id],
     );
     const history = await this.dataSource.query(
@@ -242,7 +319,7 @@ export class LakesService {
   async listAdmin() {
     const [rows, countRows] = await Promise.all([
       this.dataSource.query(
-        `SELECT l.id, l.name, ST_Y(l.geom::geometry) AS lat, ST_X(l.geom::geometry) AS lng, upper(l."currentTier"::text) AS current_tier, l.current_risk_score, l.downstream_population, l."updatedAt" AS last_updated, l.district_id FROM lakes l ORDER BY l.current_risk_score DESC NULLS LAST LIMIT $1`,
+        `SELECT l.id, l.name, ST_Y(l.geom::geometry) AS lat, ST_X(l.geom::geometry) AS lng, upper(l."currentTier"::text) AS current_tier, ${latestScoreSql('l')} AS current_risk_score, ${knownPopulationSql('l')} AS downstream_population, l."updatedAt" AS last_updated, l.district_id FROM lakes l ORDER BY current_risk_score DESC NULLS LAST LIMIT $1`,
         [ADMIN_LIMIT],
       ),
       this.dataSource.query(`SELECT count(*)::int AS count FROM lakes`),
@@ -281,7 +358,7 @@ export class LakesService {
           dto.historicalGlof ?? false,
           dto.source,
           dto.sourceUrl ?? null,
-          dto.downstream_population ?? 0,
+          dto.downstream_population ?? null,
           dto.area_km2 ?? null,
           dto.slug,
           dto.lng,

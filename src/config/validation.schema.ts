@@ -9,7 +9,7 @@ export const validationSchema = Joi.object({
     .default('development'),
   PORT: Joi.number().default(3000),
   CORS_ORIGINS: Joi.string().default(
-    'http://localhost:8081,http://localhost:19006',
+    'http://localhost:8080,https://cryohealth.io',
   ),
   JWT_SECRET: Joi.string().min(16).required(),
   JWT_EXPIRES: Joi.string().default('12h'),

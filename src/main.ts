@@ -3,6 +3,7 @@ import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { parseCorsOrigins } from './config/cors';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -12,14 +13,8 @@ async function bootstrap() {
   const config = app.get(ConfigService);
   // Native app fetch calls aren't CORS-restricted, but Expo web preview and future
   // browser clients are — allow only the configured origins, not '*'.
-  const corsOrigins = config.get<string[] | undefined>('corsOrigins');
-  app.enableCors({
-    origin:
-      corsOrigins && corsOrigins.length > 0
-        ? ['http://localhost:8080', 'https://cryohealth.io']
-        : ['http://localhost:8080', 'https://cryohealth.io'],
-    credentials: true,
-  });
+  const corsOrigins = parseCorsOrigins(config.get<string>('corsOrigins'));
+  app.enableCors({ origin: corsOrigins, credentials: true });
 
   const doc = SwaggerModule.createDocument(
     app,
