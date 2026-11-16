@@ -31,6 +31,7 @@ Each session's full handoff (what was done, how it was checked, what is left) is
 ## Next action
 Review and merge #21 to #26 in any order. After the first one merges, GitHub should show the others as mergeable (an "Update branch" button may appear but is not needed for this file).
 
+After #26, merge `feat/13-downstream-population-estimate` last (labelled population estimate + `inputCoverage`; #13 stays open for a real flow-path population): see `sessions/2026-10-27-issue-13-estimate-and-coverage-handoff.md`.
 ## Open questions for a human
 - The `uexel-handoff-check` workflow fails any PR that does not change `docs/ai/HANDOFF.md`, so every parallel PR rewrites the same single-state file and they all conflict. Should the check also accept a new file under `docs/ai/sessions/` as proof of a handoff, and `HANDOFF.md` be refreshed on `main` only? The workflow is copied in by `bin/uexel-onboard` from uExel/cryo-harness, so the real fix belongs there. — blocking: no
 

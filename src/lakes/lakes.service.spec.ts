@@ -4,7 +4,7 @@ import { DataSource } from 'typeorm';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Lake } from './entities/lake.entity';
 import { Observation } from './entities/observation.entity';
-import { LakesService } from './lakes.service';
+import { LakesService, inputCoverage } from './lakes.service';
 
 describe('LakesService', () => {
   const lakesRepo = { findAndCount: jest.fn(), findOne: jest.fn() };
@@ -105,6 +105,102 @@ describe('LakesService', () => {
 
       expect(lake.currentScore).toBeNull();
       expect(lake.currentArea).toBeNull();
+    });
+
+    it('labels the geo WorldPop figure as an estimate, not as downstream population', async () => {
+      lakesRepo.findAndCount.mockResolvedValue([[scored, unscored], 2]);
+      const computedAt = new Date('2026-09-01T00:00:00Z');
+      dataSource.query
+        .mockResolvedValueOnce([
+          {
+            lakeId: 'lake-1',
+            score: '0.5',
+            tier: 'watch',
+            computedAt,
+            exposure: {
+              source: 'worldpop_pak_2025_constrained_100m',
+              buffer_km: 5,
+              buffer_shape: 'square',
+              population_within_buffer: 1234.5,
+            },
+          },
+          // newest score has no exposure block: no estimate, and no fake 0
+          {
+            lakeId: 'lake-2',
+            score: '0.2',
+            tier: 'low',
+            computedAt,
+            exposure: null,
+          },
+        ])
+        .mockResolvedValueOnce([]);
+
+      const { items } = await service.list();
+
+      expect(items[0].downstreamPopulationEstimate).toEqual({
+        count: 1234.5,
+        bufferKm: 5,
+        bufferShape: 'square',
+        source: 'worldpop_pak_2025_constrained_100m',
+        note: expect.stringContaining('Rough estimate'),
+        computedAt,
+      });
+      expect(items[0].downstreamPopulation).toBeNull();
+      expect(items[1].downstreamPopulationEstimate).toBeNull();
+    });
+
+    it('reports input coverage from the signals that had real data', async () => {
+      lakesRepo.findAndCount.mockResolvedValue([[scored, unscored], 2]);
+      const computedAt = new Date('2026-09-01T00:00:00Z');
+      const weights = {
+        area_growth: 0.3,
+        historical_glof: 0.15,
+        dam_type: 0.2,
+        glacier_contact: 0.1,
+        slope: 0.1,
+        seasonal_anomaly: 0.15,
+      };
+      dataSource.query
+        .mockResolvedValueOnce([
+          {
+            lakeId: 'lake-1',
+            score: '0.5',
+            tier: 'watch',
+            computedAt,
+            exposure: null,
+            weights,
+            // no 90-day growth, no seasonal baseline yet
+            rawInputs: {
+              growth_30d_pct: 0.1,
+              growth_90d_pct: null,
+              seasonal_anomaly_pct: null,
+              dam_type: 'moraine',
+            },
+          },
+        ])
+        .mockResolvedValueOnce([]);
+
+      const { items } = await service.list();
+
+      // 0.15 (half of area_growth) + 0.15 + 0.2 + 0.1 + 0.1 of 1.0
+      expect(items[0].inputCoverage).toBe(0.7);
+      expect(items[1].inputCoverage).toBeNull();
+    });
+
+    it('counts an unknown dam type as missing and tolerates old score rows', () => {
+      const weights = { dam_type: 0.5, slope: 0.5 };
+      expect(inputCoverage({ dam_type: 'unknown' }, weights)).toBe(0.5);
+      expect(inputCoverage(null, weights)).toBeNull();
+      expect(inputCoverage({ dam_type: 'ice' }, null)).toBeNull();
+    });
+
+    it('returns a null estimate for a lake with no score at all', async () => {
+      lakesRepo.findOne.mockResolvedValue(unscored);
+      dataSource.query.mockResolvedValue([]);
+
+      const lake = await service.byId('lake-2');
+
+      expect(lake.downstreamPopulationEstimate).toBeNull();
     });
 
     it('does not query the database for an empty page', async () => {
