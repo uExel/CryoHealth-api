@@ -7,9 +7,7 @@ import {
   IsString,
   IsUUID,
 } from 'class-validator';
-import type { Tier } from '../../common/types/tier.type';
-
-const TIERS: Tier[] = ['normal', 'watch', 'high', 'critical'];
+import { TIERS, type Tier } from '../../common/types/tier.type';
 
 /** The contract the geo service reports against. Auth: @Roles('cryohealth_admin') +
  *  @AllowServiceKey() — a human admin JWT or the GEO_SERVICE_API_KEY header both work;

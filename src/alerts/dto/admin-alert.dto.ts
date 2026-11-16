@@ -1,7 +1,5 @@
 import { IsIn, IsNotEmpty, IsOptional, IsString } from 'class-validator';
-import type { Tier } from '../../common/types/tier.type';
-
-const TIERS: Tier[] = ['normal', 'watch', 'high', 'critical'];
+import { TIERS, type Tier } from '../../common/types/tier.type';
 
 /** Web dashboard's alert edit form (PUT /admin/alerts/:id) — body/tier/window only.
  *  Status and clearedAt belong to the clear action, not an edit. */
