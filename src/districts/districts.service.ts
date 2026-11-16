@@ -12,6 +12,15 @@ import { UpdateDistrictDto } from './dto/update-district.dto';
 
 const POSTGRES_UNIQUE_VIOLATION = '23505';
 
+/** Tables with a district_id foreign key (all ON DELETE SET NULL). Fixed list, never user input. */
+const DISTRICT_DEPENDENT_TABLES = [
+  'alerts',
+  'cases',
+  'chw_profiles',
+  'glaciers',
+  'lakes',
+] as const;
+
 @Injectable()
 export class DistrictsService {
   constructor(
@@ -152,9 +161,33 @@ export class DistrictsService {
   async remove(id: string, reason: string, actorId: string) {
     return this.dataSource.transaction(async (manager) => {
       const repo = manager.getRepository(District);
-      const district = await repo.findOne({ where: { id } });
+      // Lock the district row first (SELECT ... FOR UPDATE). Inserting or re-pointing a
+      // row that references it takes a FOR KEY SHARE lock on this row, which conflicts,
+      // so no dependent can commit between the counts below and the delete.
+      const district = await repo
+        .createQueryBuilder('district')
+        .setLock('pessimistic_write')
+        .where('district.id = :id', { id })
+        .getOne();
       if (!district) {
         throw new NotFoundException('District not found');
+      }
+
+      // Every FK to districts is ON DELETE SET NULL, so without this check a delete
+      // silently detaches these rows. Block it instead.
+      const dependents: Record<string, number> = {};
+      for (const table of DISTRICT_DEPENDENT_TABLES) {
+        const rows: { n: number }[] = await manager.query(
+          `SELECT count(*)::int AS n FROM "${table}" WHERE district_id = $1`,
+          [id],
+        );
+        dependents[table] = rows[0]?.n ?? 0;
+      }
+      if (Object.values(dependents).some((n) => n > 0)) {
+        throw new ConflictException({
+          message: 'Cannot delete district because it has dependent records',
+          dependents,
+        });
       }
 
       await repo.remove(district);
