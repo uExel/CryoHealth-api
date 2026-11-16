@@ -204,7 +204,9 @@ export class CasesService {
 
   async removeAdmin(id: string, reason: string, actorId: string) {
     return this.dataSource.transaction(async (manager) => {
-      const rows = await this.dataSource.query(
+      // Must use the transaction's manager: this.dataSource.query would run on another
+      // connection and commit the delete even when the audit insert below fails.
+      const rows = await manager.query(
         `UPDATE cases SET deleted_at = now() WHERE id = $1 AND deleted_at IS NULL RETURNING id`,
         [id],
       );
