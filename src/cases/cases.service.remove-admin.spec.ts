@@ -41,7 +41,8 @@ describe('CasesService.removeAdmin', () => {
   });
 
   it('soft-deletes through the transaction manager and writes one audit row', async () => {
-    manager.query.mockResolvedValue([{ id: CASE_ID }]);
+    // TypeORM returns [rows, rowCount] for an UPDATE ... RETURNING.
+    manager.query.mockResolvedValue([[{ id: CASE_ID }], 1]);
     auditInsert.mockResolvedValue(undefined);
 
     const result = await service.removeAdmin(CASE_ID, 'duplicate entry', ACTOR);
@@ -66,7 +67,7 @@ describe('CasesService.removeAdmin', () => {
   });
 
   it('rejects when the audit insert fails, so the transaction can roll the delete back', async () => {
-    manager.query.mockResolvedValue([{ id: CASE_ID }]);
+    manager.query.mockResolvedValue([[{ id: CASE_ID }], 1]);
     auditInsert.mockRejectedValue(new Error('audit insert failed'));
 
     await expect(service.removeAdmin(CASE_ID, 'why', ACTOR)).rejects.toThrow(
@@ -78,7 +79,8 @@ describe('CasesService.removeAdmin', () => {
   });
 
   it('returns 404 and writes no audit row when the case is missing or already deleted', async () => {
-    manager.query.mockResolvedValue([]);
+    // No row matched: TypeORM still returns a two-element tuple, [[], 0].
+    manager.query.mockResolvedValue([[], 0]);
 
     await expect(service.removeAdmin(CASE_ID, 'why', ACTOR)).rejects.toThrow(
       NotFoundException,
