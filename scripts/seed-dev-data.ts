@@ -23,9 +23,9 @@
  *    (`GUIDANCE.chw`/`.pub` -> `steps`, `ALERT_DETAIL`/`CRITICAL` -> `body`) —
  *    team-authored design-reference content, not generated here. Per workspace
  *    CLAUDE.md, dosing/diagnosis text must never come from a language model; this
- *    script copies, it does not compose. `glof-evacuation-checklist` has no `steps`:
- *    its source (`ALERT_DETAIL.checklist`) is flat strings with no per-item tier/why
- *    split to transcribe, so `body` (already clean) stays its only content.
+ *    script copies, it does not compose. `glof-evacuation-checklist`'s `steps` are its
+ *    `ALERT_DETAIL.checklist` items, each tagged `critical`/numbered with the
+ *    `CRITICAL.honest` text as `why` (identical for both audiences).
  *  - alerts: also transcribed from `mock.ts`'s `ALERTS`/`ALERT_DETAIL`. `lakes.currentTier`
  *    is deliberately left untouched — that column is tier *policy* output owned by
  *    CryoHealth-api's alert service, not something a seed script should set. The
