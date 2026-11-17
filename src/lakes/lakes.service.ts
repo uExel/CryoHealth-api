@@ -31,9 +31,17 @@ const latestScoreSql = (alias: string) =>
  * population from the newest hazard score, but only when that score was really
  * flow-routed (a radial-buffer fallback is an estimate and is never shown as the
  * downstream population). NULL when neither exists.
+ *
+ * `components` is only required to be an object at ingest, so the corridor count may be
+ * a string ("n/a", "1234") or far outside int4 (1e12). The cast sits in the THEN branch,
+ * which Postgres evaluates only when the WHEN holds, so a non-number is NULL instead of
+ * a cast error that would 500 every list; a number is clamped to the int4 range. A
+ * numeric string is NULL on purpose: the TS isNum check in list() treats it the same.
  */
+const INT4_MIN = -2147483648;
+const INT4_MAX = 2147483647;
 const knownPopulationSql = (alias: string) =>
-  `COALESCE(NULLIF(${alias}.downstream_population, 0), (SELECT CASE WHEN fp.components->'exposure'->>'method' = '${FLOW_PATH_METHOD}' THEN ROUND((fp.components->'exposure'->>'population_along_corridor')::numeric)::int END FROM hazard_scores fp WHERE fp."lakeId" = ${alias}.id ORDER BY fp."computedAt" DESC LIMIT 1))`;
+  `COALESCE(NULLIF(${alias}.downstream_population, 0), (SELECT CASE WHEN fp.components->'exposure'->>'method' = '${FLOW_PATH_METHOD}' AND jsonb_typeof(fp.components->'exposure'->'population_along_corridor') = 'number' THEN LEAST(GREATEST(ROUND((fp.components->'exposure'->>'population_along_corridor')::numeric), ${INT4_MIN}), ${INT4_MAX})::int END FROM hazard_scores fp WHERE fp."lakeId" = ${alias}.id ORDER BY fp."computedAt" DESC LIMIT 1))`;
 
 export interface HotLakeRow {
   id: string;
