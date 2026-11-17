@@ -40,6 +40,27 @@ describe('LakesService', () => {
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
+  it('lake detail alerts expose status and cleared_at so cleared alerts can be told apart', async () => {
+    const alertRow = {
+      id: 'a-1',
+      title: 'Cleared',
+      tier: 'HIGH',
+      status: 'cleared',
+      cleared_at: '2026-10-01T00:00:00.000Z',
+    };
+    dataSource.query
+      .mockResolvedValueOnce([{ id: 'lake-1' }]) // lake
+      .mockResolvedValueOnce([]) // history
+      .mockResolvedValueOnce([alertRow]) // alerts
+      .mockResolvedValueOnce([]); // glaciers
+    const detail = await service.lakeDetail('lake-1');
+    const alertsSql = dataSource.query.mock.calls[2][0] as string;
+    expect(alertsSql).toContain('FROM alerts');
+    expect(alertsSql).toContain('status');
+    expect(alertsSql).toContain('"clearedAt" AS cleared_at');
+    expect(detail.alerts).toEqual([alertRow]);
+  });
+
   it('caps observation pageSize at 500 and orders newest first', async () => {
     obsRepo.findAndCount.mockResolvedValue([[], 0]);
     await service.listObservations('lake-1', 1, 10_000);
