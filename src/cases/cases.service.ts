@@ -240,11 +240,14 @@ export class CasesService {
       if (updates.length === 0) return before;
 
       values.push(id);
-      const afterRows = await manager.query(
+      // An UPDATE ... RETURNING through manager.query() comes back as
+      // [rows, rowCount], not as the rows themselves.
+      const [afterRows] = await manager.query(
         `UPDATE cases SET ${updates.join(', ')} WHERE id = $${idx} AND deleted_at IS NULL RETURNING id, chw_id, district_id, patient_age, patient_sex, symptoms, diagnosis, treatment, outcome, is_disaster_related, created_at, deleted_at`,
         values,
       );
       const after = afterRows[0];
+      if (!after) throw new NotFoundException('Case not found or soft-deleted');
 
       const changed = writableKeys.filter(
         (key) => dto[key] !== undefined && before[key] !== after[key],
@@ -262,7 +265,9 @@ export class CasesService {
     return this.dataSource.transaction(async (manager) => {
       // Must use the transaction's manager: this.dataSource.query would run on another
       // connection and commit the delete even when the audit insert below fails.
-      const rows = await manager.query(
+      // An UPDATE ... RETURNING through manager.query() comes back as
+      // [rows, rowCount], not as the rows themselves.
+      const [rows] = await manager.query(
         `UPDATE cases SET deleted_at = now() WHERE id = $1 AND deleted_at IS NULL RETURNING id`,
         [id],
       );
