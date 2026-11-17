@@ -1,5 +1,6 @@
 import {
   IsEnum,
+  IsEmail,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -13,6 +14,10 @@ export class CreateUserDto {
   @IsString()
   @IsNotEmpty({ message: 'Name is required' })
   name: string;
+
+  @IsOptional()
+  @IsEmail()
+  email?: string;
 
   @IsEnum(['cryohealth_admin', 'facility_admin', 'chw', 'viewer'], {
     message:

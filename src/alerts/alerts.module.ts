@@ -10,12 +10,14 @@ import { HazardScore } from './entities/hazard-score.entity';
 import { LogNotificationChannel } from './notifications/log-notification-channel';
 import { NOTIFICATION_CHANNELS } from './notifications/notification-channel';
 import { PushModule } from '../push/push.module';
+import { AlertEmailModule } from './notifications/alert-email.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Alert, HazardScore, AuditEntry, Facility]),
     UsersModule,
     PushModule,
+    AlertEmailModule,
   ],
   controllers: [AlertsController],
   providers: [

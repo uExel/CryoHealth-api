@@ -22,6 +22,7 @@ import { Protocol } from '../protocols/entities/protocol.entity';
 import { ChwProfile } from '../chw-profiles/entities/chw-profile.entity';
 import { PushDevice } from '../push/entities/push-device.entity';
 import { PushDelivery } from '../push/entities/push-delivery.entity';
+import { AlertEmailDelivery } from '../alerts/entities/alert-email-delivery.entity';
 
 export const entities = [
   Lake,
@@ -40,4 +41,5 @@ export const entities = [
   ChwProfile,
   PushDevice,
   PushDelivery,
+  AlertEmailDelivery,
 ];

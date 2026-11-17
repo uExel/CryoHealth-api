@@ -29,6 +29,25 @@ export const validationSchema = Joi.object({
     then: Joi.required(),
     otherwise: Joi.optional(),
   }),
+  SMTP_HOST: Joi.string().min(1).empty('').when('NODE_ENV', {
+    is: 'production',
+    then: Joi.required(),
+    otherwise: Joi.optional(),
+  }),
+  SMTP_PORT: Joi.number().integer().min(1).max(65535).default(587),
+  SMTP_SECURE: Joi.boolean().default(false),
+  SMTP_USER: Joi.string().min(1).empty(''),
+  SMTP_PASSWORD: Joi.string().min(1).empty(''),
+  SMTP_FROM: Joi.string().email().when('NODE_ENV', {
+    is: 'production',
+    then: Joi.required(),
+    otherwise: Joi.optional(),
+  }),
+  EMAIL_BATCH_SIZE: Joi.number().integer().min(1).max(500).default(50),
+  EMAIL_MAX_ATTEMPTS: Joi.number().integer().min(1).default(8),
+  EMAIL_RETRY_BASE_MS: Joi.number().integer().min(1000).default(30000),
+  EMAIL_RETRY_MAX_MS: Joi.number().integer().min(1000).default(21600000),
+  EMAIL_POLL_INTERVAL_MS: Joi.number().integer().min(1000).default(10000),
   PUSH_BATCH_SIZE: Joi.number().integer().min(1).max(500).default(500),
   PUSH_MAX_ATTEMPTS: Joi.number().integer().min(1).default(8),
   PUSH_RETRY_BASE_MS: Joi.number().integer().min(1000).default(30000),
@@ -40,4 +59,4 @@ export const validationSchema = Joi.object({
   DB_USER: Joi.string().default('cryohealth'),
   DB_PASSWORD: Joi.string().default('cryohealth-dev'),
   DB_NAME: Joi.string().default('cryohealth'),
-});
+}).and('SMTP_USER', 'SMTP_PASSWORD');

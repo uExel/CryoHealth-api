@@ -1,7 +1,11 @@
-import { IsBoolean, IsEnum, IsOptional } from 'class-validator';
+import { IsBoolean, IsEmail, IsEnum, IsOptional } from 'class-validator';
 import type { Role } from '../../common/types/role.type';
 
 export class UpdateUserDto {
+  @IsOptional()
+  @IsEmail()
+  email?: string | null;
+
   @IsOptional()
   @IsEnum(['cryohealth_admin', 'facility_admin', 'chw', 'viewer'], {
     message:
