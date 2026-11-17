@@ -1,56 +1,38 @@
-# HANDOFF — CryoHealth-api — 2026-10-18
-Session: open-api-prs-handoff-consolidation  Model: claude-sonnet-5-5  Branch: (shared by PRs #21, #22, #23, #24, #25, #26)  Goal: none  Task: land the six open API PRs without `HANDOFF.md` conflicts
+# HANDOFF — CryoHealth-api — 2026-11-17
+Session: issue-43-flowpath-population-guard  Model: claude-sonnet-5-5  Branch: fix/43-flowpath-population-guard  Goal: none  Task: fix #43 (a malformed flow-path population makes /lakes-admin, /hot-lakes and /lakes/:id/detail return 500)
 
 ## State
-`main` is at 529129d and already includes PR #27 (FCM push notifications). Six more API PRs are open against it. None is merged or deployed. This file is identical on all six branches on purpose, so they can be merged in any order without conflicting on it (see "Why this file looks the same on every branch").
-
-| PR | Branch | What it does | Session note |
-|---|---|---|---|
-| #21 | `fix/19-protocol-steps` | Protocol step validation reads the tier list from one shared `TIERS` const instead of its own copy (#19); fixes a wrong comment in the dev seed | `sessions/2026-10-06-issue-19-protocol-steps-handoff.md` |
-| #22 | `fix/issue-30-lake-alerts-include-status` | `GET /lakes/:id/detail` also returns alert `status` and `cleared_at` (API half of cryohealth#30) | `sessions/2026-10-07-issue-30-lake-alerts-status-handoff.md` |
-| #23 | `fix/14-glacier-rgi-seed` | Glacier register seeded from RGI v7.0 and cited sources, with a migration (`source_url`, unique `rgi_id`), `seed:glaciers` / `verify:glaciers` scripts (#14) | `sessions/2026-10-07-issue-14-glacier-rgi-seed-handoff.md` |
-| #24 | `fix/issue-34-delete-guards-lock` | Delete of a district or glacier locks the parent row before counting dependents; district delete refuses with 409 while rows still point at it (cryohealth#34) | `sessions/2026-10-12-issue-34-delete-guards-lock-handoff.md` |
-| #25 | `feat/admin-create-case` | `POST /admin/cases` so the admin portal's "Log a case" form works (cryohealth#3) | `sessions/2026-10-12-issue-3-admin-create-case-handoff.md` |
-| #26 | `fix/issue-13-lake-score-area-and-cors` | `CORS_ORIGINS` is read, `/lakes` returns the real latest score/area, no more fake `0` for risk score or downstream population (#13, partial) | `sessions/2026-10-14-issue-13-lake-score-and-cors-handoff.md` |
-
-Each session's full handoff (what was done, how it was checked, what is left) is kept unedited in the file named in the table. The handoff of the push-notifications session that was on `main` before this one is `sessions/2026-10-16-push-notifications-handoff.md`.
+`main` is at de604a6. The API PR queue was worked through on 2026-11-17: #21, #22, #23, #30, #32, #33 and #34 are merged and deployed (CI and deploy green for each). One older PR, #31 (deduplicated push and email tier alerts), is deliberately still open (see "Not done"). PR #45 (fix for #44, case delete/update tuple) is open on its own branch. This branch holds the #43 fix and is open as its own PR.
 
 ## Done this session
-- Merged `main` into all six branches and resolved the conflicts: `docs/ai/HANDOFF.md` on all six, and `package.json` on #23 (main added the `push:test` script, #23 added `seed:glaciers` and `verify:glaciers`; all three are kept, no dependency changed).
-- Re-ran `tsc --noEmit` and `jest` on each branch after the merge: #21 55/55, #22 56/56, #23 97/97, #24 64/64, #25 62/62, #26 68/68 tests; `tsc` clean on all six.
-- Found a second, non-docs collision: #22 and #26 both append a new test at the end of `src/lakes/lakes.service.spec.ts`. Moved #22's one test up the file (unchanged, only its position) so the two edit different places.
-- Merging the six into `main` was tried in many orders (every ordered pair, plus a sample of full orders): no conflict. All six together pass `tsc` and 127 tests.
-- Saved every session's handoff and the push-notifications handoff as separate files under `docs/ai/sessions/` so nothing was lost.
+- `knownPopulationSql` in `src/lakes/lakes.service.ts` now guards the cast with `jsonb_typeof(...) = 'number'` and clamps the result to the int4 range, so a non-numeric or out-of-range `population_along_corridor` gives NULL or a clamped value instead of a Postgres error. `/lakes-admin`, `/hot-lakes` and `/lakes/:id/detail` stay at 200, and a numeric string like `"1234"` is now NULL in the SQL lists, matching `/lakes/:id`.
+- New tests in `src/lakes/lakes.service.spec.ts`. The SQL was also run on a real Postgres engine (PGlite, no Docker) against old and new text (detail in `sessions/2026-11-17-issue-43-flowpath-population-guard-handoff.md`).
 
 ## Not done / deferred
-- **Before deploying `main` (PR #27):** the server's `/opt/cryohealth/.env` needs `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL` and `FIREBASE_PRIVATE_KEY`, and `docker-compose.prod.yml` (not in the repo) must load it with `env_file:`. Production refuses to boot without all three. This was marked blocking in the push session and is still unconfirmed.
-- **#23 rollout:** after deploy, run `npm run migration:run`, then `npm run seed:glaciers && npm run verify:glaciers` in the API container.
-- #26 does not close #13: downstream population needs a real source and per-score confidence does not exist yet.
-- The cause of the conflicts is the CI check, not these branches (see Open questions).
+- **#31 is held, not merged.** It makes `SMTP_HOST` and `SMTP_FROM` required when `NODE_ENV=production`, and every merge to `main` auto-deploys, so the API would not boot unless the server `.env` has them. It also narrows lake-alert push to devices linked to a CHW or facility admin, so guest devices stop getting alerts they get today. Both need a human decision first.
+- **Server env for push (#27):** `/opt/cryohealth/.env` needs `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL` and `FIREBASE_PRIVATE_KEY`; production refuses to boot without them. Still unconfirmed.
+- **#23 rollout:** the `glaciers.source_url` column only exists after `npm run migration:run`, so glacier endpoints error until it is run. Then `npm run seed:glaciers && npm run verify:glaciers`. Check for duplicate non-null `rgi_id` first.
+- **#34 lakes:** the 25 new lakes reach production only through a manual `npm run seed:lakes && npm run verify:lakes`.
+- #43's manual check over HTTP against dev Postgres with a hand-inserted malformed score has not been run (no Docker here).
 
 ## Next action
-Review and merge #21 to #26 in any order. After the first one merges, GitHub should show the others as mergeable (an "Update branch" button may appear but is not needed for this file).
+Review and merge the #43 and #44 PRs. Then decide on #31 (SMTP and the guest-push change) before it merges.
 
-After #26, merge `feat/13-downstream-population-estimate` last (labelled population estimate + `inputCoverage`; #13 stays open for a real flow-path population): see `sessions/2026-10-27-issue-13-estimate-and-coverage-handoff.md`. Then `feat/13-flowpath-population-and-confidence` (flow-path population and `confidence` on `/lakes`, stacked on it; needs CryoHealth-geo PR #30 deployed before values appear): `sessions/2026-11-06-issue-13-flowpath-and-confidence-handoff.md`.
 ## Open questions for a human
-- The `uexel-handoff-check` workflow fails any PR that does not change `docs/ai/HANDOFF.md`, so every parallel PR rewrites the same single-state file and they all conflict. Should the check also accept a new file under `docs/ai/sessions/` as proof of a handoff, and `HANDOFF.md` be refreshed on `main` only? The workflow is copied in by `bin/uexel-onboard` from uExel/cryo-harness, so the real fix belongs there. — blocking: no
-
-## Why this file looks the same on every branch
-Git only reports a conflict when two branches change the same lines in different ways. If both sides make the identical change, the merge is clean. So the six branches carry exactly this text, and each session's own handoff lives in its own, uniquely named file under `docs/ai/sessions/` (a new file with a new name can never conflict). When you add a session of your own, add a new file there; only touch this file when the branch you are on is the only one open.
+- The `uexel-handoff-check` workflow fails any PR that does not change `docs/ai/HANDOFF.md`, so parallel PRs all rewrite this one file and the second to merge conflicts here. Should it also accept a new file under `docs/ai/sessions/`? The workflow is copied in from uExel/cryo-harness, so the fix belongs there. — blocking: no
 
 ## Failed approaches (do not retry)
-- Resolving each PR's `HANDOFF.md` separately by keeping that PR's own text: it works for one merge, but after the first PR lands every other PR conflicts again.
 - `npm run lint` runs with `--fix` and rewrites files; run `npx eslint <files>` on the files you changed instead.
-- Git Bash turns `git show origin/main:path` into a Windows path list; set `MSYS_NO_PATHCONV=1` first.
+- Git Bash turns `git show origin/main:path` into a Windows path list; set `MSYS_NO_PATHCONV=1` for that, but not for `git worktree add`, which then creates the worktree under a wrong `E:\e\...` path.
 
 ## Loops run
 - none
 
 ## Files touched
-docs/ai/HANDOFF.md, docs/ai/sessions/2026-10-16-push-notifications-handoff.md, and one `docs/ai/sessions/*-handoff.md` per PR (named in the table above), plus `package.json` on #23 (script lines only). The only other non-doc change is #22's `src/lakes/lakes.service.spec.ts`, where a test moved position; no production code changed.
+src/lakes/lakes.service.ts, src/lakes/lakes.service.spec.ts, docs/ai/HANDOFF.md, docs/ai/sessions/2026-11-17-issue-43-flowpath-population-guard-handoff.md
 
 ## Verification status
-tests: #21 55/55, #22 56/56, #23 97/97, #24 64/64, #25 62/62, #26 68/68 (each with `main` merged in); all six combined 127  tsc: clean on all six and combined  lint: not run on this change (docs only)  review: none  qa: n/a — no production code changed
+tests: 223/223 (20 suites)  tsc: clean  lint: eslint on the two changed code files shows no errors; prettier clean  review: none  qa: SQL run on PGlite (real Postgres engine); not run against dev Postgres over HTTP
 
 ## Resume with
 /uexel:orient   (then: gh pr list --repo uExel/CryoHealth-api --state open)

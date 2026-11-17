@@ -307,6 +307,121 @@ describe('LakesService', () => {
     });
   });
 
+  /** Issue #43: `components` is only required to be an object at ingest, so a flow-path
+   *  count can be "n/a", "1234" or 1e12. In SQL the unguarded ::numeric::int cast threw
+   *  and made /lakes-admin, /hot-lakes and /lakes/:id/detail return 500 for every caller.
+   *  The database is mocked here, so the SQL tests pin the guard and the clamp in the
+   *  text of all three queries; the behaviour itself was run on a real Postgres engine
+   *  (see the PR description). */
+  describe('malformed flow-path population (issue #43)', () => {
+    const computedAt = new Date('2026-11-06T00:00:00Z');
+    const CAST = "'population_along_corridor')::numeric";
+
+    /** The SQL of every query that computes the flow-path population: one per endpoint. */
+    const populationQueries = async () => {
+      const sqlOf = () =>
+        dataSource.query.mock.calls
+          .map((c) => String(c[0]))
+          .filter((q) => q.includes(CAST));
+
+      dataSource.query.mockResolvedValue([]);
+      await service.listHotLakes();
+      await service.listAdmin();
+      const lists = sqlOf();
+
+      dataSource.query.mockReset();
+      dataSource.query
+        .mockResolvedValueOnce([{ id: 'lake-1' }]) // the lake itself
+        .mockResolvedValue([]); // history, alerts, glaciers
+      await service.lakeDetail('lake-1');
+
+      return [...lists, ...sqlOf()];
+    };
+
+    it('guards the cast with jsonb_typeof so a non-number is NULL instead of a cast error', async () => {
+      const queries = await populationQueries();
+
+      expect(queries).toHaveLength(3); // hot-lakes, admin list, lake detail
+      for (const q of queries) {
+        const guard =
+          "jsonb_typeof(fp.components->'exposure'->'population_along_corridor') = 'number'";
+        expect(q).toContain(guard);
+        // The cast may only run once the guard held: it sits in the THEN branch.
+        expect(q.indexOf(guard)).toBeLessThan(q.indexOf('THEN'));
+        expect(q.indexOf('THEN')).toBeLessThan(q.indexOf(CAST));
+      }
+    });
+
+    it('clamps a number to the int4 range so 1e12 cannot overflow', async () => {
+      const queries = await populationQueries();
+
+      for (const q of queries) {
+        expect(q).toContain('LEAST(GREATEST(ROUND(');
+        expect(q).toContain('-2147483648');
+        expect(q).toContain('2147483647');
+        expect(q).toMatch(/\)::int END FROM hazard_scores fp/);
+      }
+    });
+
+    it.each([
+      ['a non-numeric string ("n/a")', 'n/a'],
+      ['a numeric string ("1234")', '1234'],
+    ])(
+      'treats %s as no flow-path population, the same as the SQL lists',
+      async (_label, bad) => {
+        lakesRepo.findAndCount.mockResolvedValue([
+          [{ id: 'lake-1', downstreamPopulation: null }],
+          1,
+        ]);
+        dataSource.query
+          .mockResolvedValueOnce([
+            {
+              lakeId: 'lake-1',
+              score: '0.5',
+              tier: 'high',
+              computedAt,
+              exposure: {
+                method: 'd8_flowline_corridor',
+                population_along_corridor: bad,
+              },
+            },
+          ])
+          .mockResolvedValueOnce([]);
+
+        const { items } = await service.list();
+
+        expect(items[0].downstreamPopulation).toBeNull();
+        expect(items[0].downstreamPopulationFlowPath).toBeNull();
+      },
+    );
+
+    it('still answers when a score carries an out-of-range count (1e12)', async () => {
+      lakesRepo.findAndCount.mockResolvedValue([
+        [{ id: 'lake-1', downstreamPopulation: null }],
+        1,
+      ]);
+      dataSource.query
+        .mockResolvedValueOnce([
+          {
+            lakeId: 'lake-1',
+            score: '0.5',
+            tier: 'high',
+            computedAt,
+            exposure: {
+              method: 'd8_flowline_corridor',
+              population_along_corridor: 1e12,
+            },
+          },
+        ])
+        .mockResolvedValueOnce([]);
+
+      const { items } = await service.list();
+
+      expect(items).toHaveLength(1);
+      expect(items[0].currentRiskScore).toBe(0.5);
+    });
+  });
+
   describe('creating a lake without a population figure', () => {
     const baseDto = {
       name: 'Test Lake',
