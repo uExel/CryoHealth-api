@@ -9,9 +9,10 @@ export class UpdateChwProfileDto {
   @IsUUID()
   district_id?: string;
 
+  // @IsOptional lets null through: null (or blank) clears the phone, omitted keeps it.
   @IsOptional()
   @IsString()
-  phone?: string;
+  phone?: string | null;
 
   @IsOptional()
   @IsString()

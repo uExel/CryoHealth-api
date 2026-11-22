@@ -31,8 +31,10 @@ export class ChwProfile {
   @JoinColumn({ name: 'district_id' })
   district?: District;
 
-  @Column({ nullable: true })
-  phone?: string;
+  // `type: String` keeps the column type TypeORM inferred before `| null` was added
+  // (a union hides it from reflect-metadata).
+  @Column({ type: String, nullable: true })
+  phone?: string | null;
 
   @Column()
   language: string;

@@ -186,7 +186,10 @@ export class ChwProfilesService {
       if (dto.full_name !== undefined) profile.fullName = dto.full_name;
       if (dto.district_id !== undefined)
         profile.districtId = dto.district_id || undefined;
-      if (dto.phone !== undefined) profile.phone = dto.phone || undefined;
+      // undefined leaves the phone alone; null or a blank string clears it. TypeORM
+      // skips undefined on save, so clearing has to be an explicit null.
+      if (dto.phone !== undefined)
+        profile.phone = dto.phone?.trim() ? dto.phone : null;
       if (dto.language !== undefined) profile.language = dto.language;
 
       const saved = await repo.save(profile);
