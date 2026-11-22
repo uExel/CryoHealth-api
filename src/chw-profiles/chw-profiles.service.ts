@@ -68,7 +68,9 @@ export class ChwProfilesService {
         .createQueryBuilder('p')
         .leftJoinAndSelect('p.district', 'd')
         .leftJoinAndSelect('p.user', 'u')
-        .orderBy('p.full_name', 'ASC')
+        // Property path, not the column name: with take() and joins TypeORM resolves the
+        // order-by against entity metadata, and 'p.full_name' made it throw a 500.
+        .orderBy('p.fullName', 'ASC')
         .take(limit)
         .getMany(),
       this.profiles.count(),
@@ -136,7 +138,7 @@ export class ChwProfilesService {
       const profile = repo.create({
         fullName: dto.full_name,
         districtId: dto.district_id || undefined,
-        phone: dto.phone || undefined,
+        phone: dto.phone?.trim() || undefined,
         language: dto.language,
       });
 
@@ -184,12 +186,11 @@ export class ChwProfilesService {
       const before = { ...profile };
 
       if (dto.full_name !== undefined) profile.fullName = dto.full_name;
+      // undefined leaves a field alone; null (or a blank phone) clears it. TypeORM skips
+      // undefined on save, so clearing has to be an explicit null.
       if (dto.district_id !== undefined)
-        profile.districtId = dto.district_id || undefined;
-      // undefined leaves the phone alone; null or a blank string clears it. TypeORM
-      // skips undefined on save, so clearing has to be an explicit null.
-      if (dto.phone !== undefined)
-        profile.phone = dto.phone?.trim() ? dto.phone : null;
+        profile.districtId = dto.district_id || null;
+      if (dto.phone !== undefined) profile.phone = dto.phone?.trim() || null;
       if (dto.language !== undefined) profile.language = dto.language;
 
       const saved = await repo.save(profile);
