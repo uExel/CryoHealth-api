@@ -24,8 +24,8 @@ export class ChwProfile {
   @Column({ name: 'full_name' })
   fullName: string;
 
-  @Column({ name: 'district_id', nullable: true })
-  districtId?: string;
+  @Column({ name: 'district_id', type: String, nullable: true })
+  districtId?: string | null;
 
   @ManyToOne(() => District, { nullable: true, eager: false })
   @JoinColumn({ name: 'district_id' })
